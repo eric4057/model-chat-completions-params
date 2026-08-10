@@ -8,22 +8,22 @@
 
 | 參數 | 來源 | 值 / 用法 | 說明 |
 |------|------|-----------|------|
-| `chat_template_kwargs.enable_thinking` | model card、HF、Google MaaS、vLLM | `true` / `false`（預設 `false`） | 開/關 thinking 的主開關 |
-| `reasoning_effort` | vLLM | `low` / `medium` / `high` / `none` | `low\|medium\|high` 會自動注入 `enable_thinking=true`；`none` 關閉 |
-| `include_reasoning` | vLLM | `true` / `false` | 仍可生成 thought，但不回傳 reasoning 欄位 |
-| `skip_special_tokens` | vLLM（舊版 workaround） | `false` 建議搭配 thinking | 避免 thought 分隔 token 被剝掉、parser 拆不開 |
-| `--reasoning-parser gemma4` | vLLM 伺服器旗標 | 啟動時指定 | 才能正確拆 `reasoning` / `content` |
-| 回傳欄位 | vLLM / MaaS | `reasoning` 或 `reasoning_content` | 最終答案在 `content` |
+| `chat_template_kwargs.enable_thinking` | [model card](https://ai.google.dev/gemma/docs/core/model_card_4)、[HF](https://huggingface.co/google/gemma-4-31B-it)、[Google MaaS](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/maas/capabilities/thinking)、[vLLM](https://docs.vllm.ai/en/latest/features/reasoning_outputs/) | `true` / `false`（預設 `false`） | 開/關 thinking 的主開關 |
+| `reasoning_effort` | [vLLM](https://docs.vllm.ai/en/latest/features/reasoning_outputs/) | `low` / `medium` / `high` / `none` | `low\|medium\|high` 會自動注入 `enable_thinking=true`；`none` 關閉 |
+| `include_reasoning` | [vLLM](https://docs.vllm.ai/en/latest/features/reasoning_outputs/) | `true` / `false` | 仍可生成 thought，但不回傳 reasoning 欄位 |
+| `skip_special_tokens` | [HF discussion](https://huggingface.co/google/gemma-4-31B-it/discussions/28)、[vLLM PR](https://github.com/vllm-project/vllm/pull/39027) | `false` 建議搭配 thinking | 舊版 workaround：避免 thought 分隔 token 被剝掉 |
+| `--reasoning-parser gemma4` | [vLLM recipe](https://github.com/vllm-project/recipes/blob/main/Google/Gemma4.md) | 啟動時指定 | 才能正確拆 `reasoning` / `content` |
+| 回傳欄位 | [vLLM](https://docs.vllm.ai/en/latest/features/reasoning_outputs/)、[Google MaaS](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/maas/capabilities/thinking) | `reasoning` 或 `reasoning_content` | 最終答案在 `content` |
 
 ### Kimi K3
 
 | 參數 | 來源 | 值 / 用法 | 說明 |
 |------|------|-----------|------|
-| `reasoning_effort` | Moonshot 官方、LiteLLM | `low` / `high` / `max`（預設 `max`） | 控制推理強度；**thinking 永遠開啟，無法關閉** |
-| `response_format` | Moonshot 官方 | `json_object` 或 `json_schema`（建議 `strict: true`） | 只 parse `message.content`，不要 parse `reasoning_content` |
-| `thinking` | Moonshot（僅 K2.x） | — | **K3 不要用**；遷到 K3 應改為 `reasoning_effort` |
-| sampling 固定參數 | Moonshot 官方 | `temperature`/`top_p`/`n`/penalties 固定 | 勿傳其他值，否則可能報錯 |
-| 回傳欄位 | Moonshot、LiteLLM | `reasoning_content` | 多輪 / tool 須原樣回傳完整 assistant message |
+| `reasoning_effort` | [Moonshot Reasoning Effort](https://platform.kimi.ai/docs/guide/use-reasoning-effort)、[LiteLLM PR](https://github.com/BerriAI/litellm/pull/33675) | `low` / `high` / `max`（預設 `max`） | 控制推理強度；**thinking 永遠開啟，無法關閉** |
+| `response_format` | [Moonshot response_format](https://platform.kimi.ai/docs/guide/response_format) | `json_object` 或 `json_schema`（建議 `strict: true`） | 只 parse `message.content`，不要 parse `reasoning_content` |
+| `thinking` | [Moonshot Model Parameter Reference](https://platform.kimi.ai/docs/api/models-overview)（僅 K2.x） | — | **K3 不要用**；遷到 K3 應改為 `reasoning_effort` |
+| sampling 固定參數 | [Moonshot K3 Quickstart](https://platform.kimi.ai/docs/guide/kimi-k3-quickstart)、[Model Parameter Reference](https://platform.kimi.ai/docs/api/models-overview) | `temperature`/`top_p`/`n`/penalties 固定 | 勿傳其他值，否則可能報錯 |
+| 回傳欄位 | [Moonshot Reasoning Effort](https://platform.kimi.ai/docs/guide/use-reasoning-effort)、[LiteLLM](https://docs.litellm.ai/docs/reasoning_content) | `reasoning_content` | 多輪 / tool 須原樣回傳完整 assistant message |
 
 ---
 
