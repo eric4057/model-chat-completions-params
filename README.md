@@ -15,6 +15,6 @@
 ```bash
 export OPENAI_BASE_URL=https://inner-medusa.genai.nchc.org.tw/v1
 export OPENAI_API_KEY=...
-export MODELS=Kimi-K3-max,gemma-4-31B-it,gpt-oss-120b
+export MODELS=Kimi-K3-max,gemma-4-31B-it
 python3 scripts/probe_chat_completions.py
 ```

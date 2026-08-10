@@ -2,6 +2,31 @@
 
 整理日期：2026-08-10。以**官方文件**為準；實測端點 `https://inner-medusa.genai.nchc.org.tw/v1`，見 [RESULTS.md](./RESULTS.md)。
 
+## 0. 特殊參數一覽（model card / LiteLLM / vLLM）
+
+### Gemma 4
+
+| 參數 | 來源 | 值 / 用法 | 說明 |
+|------|------|-----------|------|
+| `chat_template_kwargs.enable_thinking` | model card、HF、Google MaaS、vLLM | `true` / `false`（預設 `false`） | 開/關 thinking 的主開關 |
+| `reasoning_effort` | vLLM | `low` / `medium` / `high` / `none` | `low\|medium\|high` 會自動注入 `enable_thinking=true`；`none` 關閉 |
+| `include_reasoning` | vLLM | `true` / `false` | 仍可生成 thought，但不回傳 reasoning 欄位 |
+| `skip_special_tokens` | vLLM（舊版 workaround） | `false` 建議搭配 thinking | 避免 thought 分隔 token 被剝掉、parser 拆不開 |
+| `--reasoning-parser gemma4` | vLLM 伺服器旗標 | 啟動時指定 | 才能正確拆 `reasoning` / `content` |
+| 回傳欄位 | vLLM / MaaS | `reasoning` 或 `reasoning_content` | 最終答案在 `content` |
+
+### Kimi K3
+
+| 參數 | 來源 | 值 / 用法 | 說明 |
+|------|------|-----------|------|
+| `reasoning_effort` | Moonshot 官方、LiteLLM | `low` / `high` / `max`（預設 `max`） | 控制推理強度；**thinking 永遠開啟，無法關閉** |
+| `response_format` | Moonshot 官方 | `json_object` 或 `json_schema`（建議 `strict: true`） | 只 parse `message.content`，不要 parse `reasoning_content` |
+| `thinking` | Moonshot（僅 K2.x） | — | **K3 不要用**；遷到 K3 應改為 `reasoning_effort` |
+| sampling 固定參數 | Moonshot 官方 | `temperature`/`top_p`/`n`/penalties 固定 | 勿傳其他值，否則可能報錯 |
+| 回傳欄位 | Moonshot、LiteLLM | `reasoning_content` | 多輪 / tool 須原樣回傳完整 assistant message |
+
+---
+
 ## 1. 總表（請求端怎麼開）
 
 | 能力 | Gemma 4（官方 / vLLM） | Kimi K3（Moonshot 官方） |
@@ -181,7 +206,7 @@ export BASE=https://inner-medusa.genai.nchc.org.tw/v1
 export KEY=...   # API Key
 ```
 
-此端點可見模型名：`Kimi-K3`、`Kimi-K3-low`、`Kimi-K3-high`、`Kimi-K3-max`、`gemma-4-31B-it`、`gpt-oss-120b` 等。
+此端點可見模型名：`Kimi-K3`、`Kimi-K3-low`、`Kimi-K3-high`、`Kimi-K3-max`、`gemma-4-31B-it` 等。
 
 ### Kimi K3
 
@@ -213,19 +238,6 @@ curl "$BASE/chat/completions" \
 ```
 
 > 官方寫法如上；**inner-medusa 實測目前 thinking 未生效**（見 RESULTS.md）。結構化輸出請用 `response_format`。
-
-### gpt-oss-120b
-
-```bash
-curl "$BASE/chat/completions" \
-  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
-  -d '{
-    "model": "gpt-oss-120b",
-    "messages": [{"role":"user","content":"15*37?"}],
-    "reasoning_effort": "high",
-    "max_tokens": 2048
-  }'
-```
 
 ---
 

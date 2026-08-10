@@ -11,12 +11,10 @@
 |------|-------------|-------------|---------------|-----------|--------|
 | **Kimi-K3** / `-low` / `-high` / `-max` | ✅ | ✅ | ❌ 500 | ✅ 永遠有 `reasoning_content` | ✅ `reasoning_effort` 或別名 |
 | **gemma-4-31B-it** | ✅ | ✅ | ❌ 500 | ❌ thinking 參數未生效 | ❌ 接受但無 effect |
-| **gpt-oss-120b** | ✅ | ✅ | ❌ 500 | ✅ | ✅ `low\|medium\|high`；`none`/`max` ❌ |
 
 1. 結構化輸出請用物件：`{"type":"json_object"}` 或 `json_schema`；**不要**傳字串 `"json"`。
 2. **Kimi-K3**：永遠 thinking；effort 用頂層 `reasoning_effort=low|high|max`，或選別名 `Kimi-K3-low|high|max`。
 3. **Gemma-4**：官方要用 `chat_template_kwargs.enable_thinking`，但此端點目前**打不穿**（HTTP 200、無 reasoning 欄位）。
-4. **gpt-oss-120b**：`reasoning_effort` 有效；值僅 `low|medium|high`。
 
 ---
 
@@ -61,18 +59,7 @@
 
 ---
 
-## C. gpt-oss-120b
-
-| case | HTTP | 備註 |
-|------|------|------|
-| `reasoning_effort=high/low` | 200 | 有 `reasoning_content`；high 通常較長 |
-| `reasoning_effort=none` | 400 | Harmony 不支援 |
-| `reasoning_effort=max` | 400 | 僅 high/medium/low |
-| `json_object` / `json_schema` | 200 | OK；可與 effort 並用 |
-
----
-
-## D. 建議請求範例
+## C. 建議請求範例
 
 **Kimi：**
 ```bash
@@ -96,17 +83,5 @@ curl https://inner-medusa.genai.nchc.org.tw/v1/chat/completions \
     "messages": [{"role":"user","content":"..."}],
     "response_format": {"type":"json_schema","json_schema":{"name":"probe","strict":true,"schema":{...}}},
     "max_tokens": 1024
-  }'
-```
-
-**gpt-oss：**
-```bash
-curl https://inner-medusa.genai.nchc.org.tw/v1/chat/completions \
-  -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
-  -d '{
-    "model": "gpt-oss-120b",
-    "messages": [{"role":"user","content":"..."}],
-    "reasoning_effort": "high",
-    "max_tokens": 2048
   }'
 ```

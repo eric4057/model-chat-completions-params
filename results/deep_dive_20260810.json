@@ -19,11 +19,6 @@
       "model": "gemma-4-31B-it-with-tool",
       "param": "reasoning_effort=high",
       "effect": "HTTP 400 openai does not support reasoning_effort"
-    },
-    {
-      "model": "gpt-oss-120b",
-      "param": "reasoning_effort high vs low",
-      "effect": "reasoning_content present; length differs"
     }
   ]
 }
