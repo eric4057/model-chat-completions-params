@@ -1,0 +1,1231 @@
+{
+  "meta": {
+    "base_url": "https://inner-medusa.genai.nchc.org.tw/v1",
+    "models": [
+      "Kimi-K3-max",
+      "Kimi-K3-low",
+      "gemma-4-31B-it",
+      "gpt-oss-120b"
+    ],
+    "timeout_s": 300.0,
+    "max_tokens": 2048,
+    "started_at": "2026-08-10T12:07:18.625962+08:00",
+    "finished_at": "2026-08-10T12:08:27.618613+08:00"
+  },
+  "results": [
+    {
+      "model": "Kimi-K3-max",
+      "case_id": "baseline",
+      "group": "baseline",
+      "desc": "No special params",
+      "http_status": 200,
+      "elapsed_ms": 1558,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "15 × 37 = 555",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-max",
+      "case_id": "rf_none_json_prompt",
+      "group": "response_format",
+      "desc": "JSON via prompt only",
+      "http_status": 200,
+      "elapsed_ms": 896,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "{\"ok\": true, \"n\": 1}",
+      "reasoning_preview": "The user wants me to reply with ONLY JSON: {\"ok\": true, \"n\": 1}\\n\\nThis is a simple request. Just output the JSON exactly as requested. No markdown formatting,…",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-max",
+      "case_id": "rf_json_object",
+      "group": "response_format",
+      "desc": "response_format={\"type\":\"json_object\"}",
+      "http_status": 200,
+      "elapsed_ms": 666,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "{\"ok\": true, \"n\": 1}",
+      "reasoning_preview": "The user wants ONLY JSON: {\"ok\": true, \"n\": 1}. I should reply with exactly that, no markdown, no extra text.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-max",
+      "case_id": "rf_json_schema",
+      "group": "response_format",
+      "desc": "response_format={\"type\":\"json_schema\",...}",
+      "http_status": 200,
+      "elapsed_ms": 870,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "{\"ok\":true,\"n\":1}",
+      "reasoning_preview": "The user wants only JSON: {\"ok\": true, \"n\": 1}. The response format requires raw JSON matching schema with ok boolean and n integer. I should output exactly th…",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-max",
+      "case_id": "rf_string_json",
+      "group": "response_format",
+      "desc": "response_format=\"json\" (non-standard)",
+      "http_status": 500,
+      "elapsed_ms": 4211,
+      "verdict": "fail",
+      "has_reasoning_field": false,
+      "json_loads_ok": false,
+      "message_keys": [],
+      "content_preview": "",
+      "reasoning_preview": "",
+      "error_preview": "{\"error\":{\"message\":\"litellm.APIConnectionError: APIConnectionError: Hosted_vllmException - Unsupported response_format type - json. Received Model Group=Kimi-K3-max\\nAvailable Model Group Fallbacks=None\",\"type\":null,\"param\":null,\"code\":\"500\"}}",
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-max",
+      "case_id": "gemma_enable_thinking_true",
+      "group": "reasoning_gemma",
+      "desc": "chat_template_kwargs.enable_thinking=true",
+      "http_status": 200,
+      "elapsed_ms": 43,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "15 × 37 = 555",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-max",
+      "case_id": "gemma_enable_thinking_false",
+      "group": "reasoning_gemma",
+      "desc": "chat_template_kwargs.enable_thinking=false",
+      "http_status": 200,
+      "elapsed_ms": 35,
+      "verdict": "warn",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "15 × 37 = 555",
+      "error_preview": null,
+      "notes": [
+        "reasoning still present when expected off/suppressed"
+      ]
+    },
+    {
+      "model": "Kimi-K3-max",
+      "case_id": "gemma_enable_thinking_skip_false",
+      "group": "reasoning_gemma",
+      "desc": "enable_thinking=true + skip_special_tokens=false",
+      "http_status": 200,
+      "elapsed_ms": 68,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "15 × 37 = 555",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-max",
+      "case_id": "gemma_reasoning_effort_high",
+      "group": "reasoning_gemma",
+      "desc": "top-level reasoning_effort=\"high\" (vLLM auto enable_thinking)",
+      "http_status": 200,
+      "elapsed_ms": 889,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "**555**",
+      "reasoning_preview": "15 * 37. 15 * 37 = 15 * 37. 37 * 15 = 37 * 10 + 37 * 5 = 370 + 185 = 555.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-max",
+      "case_id": "gemma_reasoning_effort_none",
+      "group": "reasoning_gemma",
+      "desc": "top-level reasoning_effort=\"none\"",
+      "http_status": 200,
+      "elapsed_ms": 580,
+      "verdict": "warn",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "15 * 37 = 15 * 37. Let me compute: 15 * 37 = 15 * 30 + 15 * 7 = 450 + 105 = 555.",
+      "error_preview": null,
+      "notes": [
+        "reasoning still present when expected off/suppressed"
+      ]
+    },
+    {
+      "model": "Kimi-K3-max",
+      "case_id": "gemma_include_reasoning_false",
+      "group": "reasoning_gemma",
+      "desc": "enable_thinking=true + include_reasoning=false",
+      "http_status": 200,
+      "elapsed_ms": 38,
+      "verdict": "warn",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "15 × 37 = 555",
+      "error_preview": null,
+      "notes": [
+        "reasoning still present when expected off/suppressed"
+      ]
+    },
+    {
+      "model": "Kimi-K3-max",
+      "case_id": "kimi_reasoning_effort_low",
+      "group": "reasoning_kimi",
+      "desc": "reasoning_effort=\"low\" (Kimi K3 official)",
+      "http_status": 200,
+      "elapsed_ms": 687,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "15 * 37 = 555. Check: 15 × 37 = 15 × 30 + 15 × 7 = 450 + 105 = 555.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-max",
+      "case_id": "kimi_reasoning_effort_max",
+      "group": "reasoning_kimi",
+      "desc": "reasoning_effort=\"max\" (Kimi K3 default)",
+      "http_status": 200,
+      "elapsed_ms": 578,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "**555**\\n\\n(15 × 37 = 15 × 30 + 15 × 7 = 450 + 105 = 555)",
+      "reasoning_preview": "Simple multiplication: 15 * 37 = 555.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-max",
+      "case_id": "kimi_thinking_enabled",
+      "group": "reasoning_kimi",
+      "desc": "thinking={\"type\":\"enabled\"} (K2.x; K3 should not use)",
+      "http_status": 400,
+      "elapsed_ms": 2829,
+      "verdict": "fail",
+      "has_reasoning_field": false,
+      "json_loads_ok": null,
+      "message_keys": [],
+      "content_preview": "",
+      "reasoning_preview": "",
+      "error_preview": "{\"error\":{\"message\":\"litellm.UnsupportedParamsError: hosted_vllm does not support parameters: ['thinking'], for model=Kimi-K3-max. To drop these, set `litellm.drop_params=True` or for proxy:\\n\\n`litellm_settings:\\n drop_params: true`\\n. \\n If you want to use these params dynamically send allowed_openai_params=['thinking'] in your request.. Received Model Group=Kimi-K3-max\\nAvailable Model Group F…",
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-max",
+      "case_id": "combo_json_schema_thinking",
+      "group": "combo",
+      "desc": "json_schema + enable_thinking=true",
+      "http_status": 200,
+      "elapsed_ms": 36,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "{\"ok\":true,\"n\":1}",
+      "reasoning_preview": "The user wants only JSON: {\"ok\": true, \"n\": 1}. The response format requires raw JSON matching schema with ok boolean and n integer. I should output exactly th…",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-low",
+      "case_id": "baseline",
+      "group": "baseline",
+      "desc": "No special params",
+      "http_status": 200,
+      "elapsed_ms": 407,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "15*37 = 555. Brief.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-low",
+      "case_id": "rf_none_json_prompt",
+      "group": "response_format",
+      "desc": "JSON via prompt only",
+      "http_status": 200,
+      "elapsed_ms": 607,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "{\"ok\": true, \"n\": 1}",
+      "reasoning_preview": "We need answer only JSON exactly. Ensure no extra text/code fences. Need final only JSON.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-low",
+      "case_id": "rf_json_object",
+      "group": "response_format",
+      "desc": "response_format={\"type\":\"json_object\"}",
+      "http_status": 200,
+      "elapsed_ms": 631,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "{\"ok\":true,\"n\":1}",
+      "reasoning_preview": "Must obey. Need final only JSON. OK.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-low",
+      "case_id": "rf_json_schema",
+      "group": "response_format",
+      "desc": "response_format={\"type\":\"json_schema\",...}",
+      "http_status": 200,
+      "elapsed_ms": 567,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "{\"ok\": true, \"n\": 1}",
+      "reasoning_preview": "The user wants only JSON with ok true and n 1. Final only JSON.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-low",
+      "case_id": "rf_string_json",
+      "group": "response_format",
+      "desc": "response_format=\"json\" (non-standard)",
+      "http_status": 500,
+      "elapsed_ms": 3291,
+      "verdict": "fail",
+      "has_reasoning_field": false,
+      "json_loads_ok": false,
+      "message_keys": [],
+      "content_preview": "",
+      "reasoning_preview": "",
+      "error_preview": "{\"error\":{\"message\":\"litellm.APIConnectionError: APIConnectionError: Hosted_vllmException - Unsupported response_format type - json. Received Model Group=Kimi-K3-low\\nAvailable Model Group Fallbacks=None\",\"type\":null,\"param\":null,\"code\":\"500\"}}",
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-low",
+      "case_id": "gemma_enable_thinking_true",
+      "group": "reasoning_gemma",
+      "desc": "chat_template_kwargs.enable_thinking=true",
+      "http_status": 200,
+      "elapsed_ms": 32,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "15*37 = 555. Brief.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-low",
+      "case_id": "gemma_enable_thinking_false",
+      "group": "reasoning_gemma",
+      "desc": "chat_template_kwargs.enable_thinking=false",
+      "http_status": 200,
+      "elapsed_ms": 38,
+      "verdict": "warn",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "15*37 = 555. Brief.",
+      "error_preview": null,
+      "notes": [
+        "reasoning still present when expected off/suppressed"
+      ]
+    },
+    {
+      "model": "Kimi-K3-low",
+      "case_id": "gemma_enable_thinking_skip_false",
+      "group": "reasoning_gemma",
+      "desc": "enable_thinking=true + skip_special_tokens=false",
+      "http_status": 200,
+      "elapsed_ms": 33,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "15*37 = 555. Brief.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-low",
+      "case_id": "gemma_reasoning_effort_high",
+      "group": "reasoning_gemma",
+      "desc": "top-level reasoning_effort=\"high\" (vLLM auto enable_thinking)",
+      "http_status": 200,
+      "elapsed_ms": 618,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "Compute 15*37: 15*37 = 555. Need brief answer only. Ensure final concise.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-low",
+      "case_id": "gemma_reasoning_effort_none",
+      "group": "reasoning_gemma",
+      "desc": "top-level reasoning_effort=\"none\"",
+      "http_status": 200,
+      "elapsed_ms": 1028,
+      "verdict": "warn",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "The user asked 15*37, brief answer. Compute: 15*37 = 15*(40-3)=600-45=555. Need final concise only. Ensure no extra. Since user asks brief answer, output 555.",
+      "error_preview": null,
+      "notes": [
+        "reasoning still present when expected off/suppressed"
+      ]
+    },
+    {
+      "model": "Kimi-K3-low",
+      "case_id": "gemma_include_reasoning_false",
+      "group": "reasoning_gemma",
+      "desc": "enable_thinking=true + include_reasoning=false",
+      "http_status": 200,
+      "elapsed_ms": 40,
+      "verdict": "warn",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "15*37 = 555. Brief.",
+      "error_preview": null,
+      "notes": [
+        "reasoning still present when expected off/suppressed"
+      ]
+    },
+    {
+      "model": "Kimi-K3-low",
+      "case_id": "kimi_reasoning_effort_low",
+      "group": "reasoning_kimi",
+      "desc": "reasoning_effort=\"low\" (Kimi K3 official)",
+      "http_status": 200,
+      "elapsed_ms": 663,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "Compute 15*37 = 15*30 450 +15*7 105 =555. Need brief final.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-low",
+      "case_id": "kimi_reasoning_effort_max",
+      "group": "reasoning_kimi",
+      "desc": "reasoning_effort=\"max\" (Kimi K3 default)",
+      "http_status": 200,
+      "elapsed_ms": 487,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "Need answer compute. 15*37=555. Final brief.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-low",
+      "case_id": "kimi_thinking_enabled",
+      "group": "reasoning_kimi",
+      "desc": "thinking={\"type\":\"enabled\"} (K2.x; K3 should not use)",
+      "http_status": 400,
+      "elapsed_ms": 3458,
+      "verdict": "fail",
+      "has_reasoning_field": false,
+      "json_loads_ok": null,
+      "message_keys": [],
+      "content_preview": "",
+      "reasoning_preview": "",
+      "error_preview": "{\"error\":{\"message\":\"litellm.UnsupportedParamsError: hosted_vllm does not support parameters: ['thinking'], for model=Kimi-K3-low. To drop these, set `litellm.drop_params=True` or for proxy:\\n\\n`litellm_settings:\\n drop_params: true`\\n. \\n If you want to use these params dynamically send allowed_openai_params=['thinking'] in your request.. Received Model Group=Kimi-K3-low\\nAvailable Model Group F…",
+      "notes": []
+    },
+    {
+      "model": "Kimi-K3-low",
+      "case_id": "combo_json_schema_thinking",
+      "group": "combo",
+      "desc": "json_schema + enable_thinking=true",
+      "http_status": 200,
+      "elapsed_ms": 34,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "{\"ok\": true, \"n\": 1}",
+      "reasoning_preview": "The user wants only JSON with ok true and n 1. Final only JSON.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gemma-4-31B-it",
+      "case_id": "baseline",
+      "group": "baseline",
+      "desc": "No special params",
+      "http_status": 200,
+      "elapsed_ms": 144,
+      "verdict": "pass",
+      "has_reasoning_field": false,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gemma-4-31B-it",
+      "case_id": "rf_none_json_prompt",
+      "group": "response_format",
+      "desc": "JSON via prompt only",
+      "http_status": 200,
+      "elapsed_ms": 152,
+      "verdict": "pass",
+      "has_reasoning_field": false,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "role"
+      ],
+      "content_preview": "{\"ok\": true, \"n\": 1}",
+      "reasoning_preview": "",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gemma-4-31B-it",
+      "case_id": "rf_json_object",
+      "group": "response_format",
+      "desc": "response_format={\"type\":\"json_object\"}",
+      "http_status": 200,
+      "elapsed_ms": 137,
+      "verdict": "pass",
+      "has_reasoning_field": false,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "role"
+      ],
+      "content_preview": "{\"ok\": true, \"n\": 1}",
+      "reasoning_preview": "",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gemma-4-31B-it",
+      "case_id": "rf_json_schema",
+      "group": "response_format",
+      "desc": "response_format={\"type\":\"json_schema\",...}",
+      "http_status": 200,
+      "elapsed_ms": 149,
+      "verdict": "pass",
+      "has_reasoning_field": false,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "role"
+      ],
+      "content_preview": "{\"ok\": true, \"n\": 1}",
+      "reasoning_preview": "",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gemma-4-31B-it",
+      "case_id": "rf_string_json",
+      "group": "response_format",
+      "desc": "response_format=\"json\" (non-standard)",
+      "http_status": 500,
+      "elapsed_ms": 2973,
+      "verdict": "fail",
+      "has_reasoning_field": false,
+      "json_loads_ok": false,
+      "message_keys": [],
+      "content_preview": "",
+      "reasoning_preview": "",
+      "error_preview": "{\"error\":{\"message\":\"litellm.APIConnectionError: APIConnectionError: Hosted_vllmException - Unsupported response_format type - json. Received Model Group=gemma-4-31B-it\\nAvailable Model Group Fallbacks=None\",\"type\":null,\"param\":null,\"code\":\"500\"}}",
+      "notes": []
+    },
+    {
+      "model": "gemma-4-31B-it",
+      "case_id": "gemma_enable_thinking_true",
+      "group": "reasoning_gemma",
+      "desc": "chat_template_kwargs.enable_thinking=true",
+      "http_status": 200,
+      "elapsed_ms": 45,
+      "verdict": "warn",
+      "has_reasoning_field": false,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "",
+      "error_preview": null,
+      "notes": [
+        "no reasoning / reasoning_content in message"
+      ]
+    },
+    {
+      "model": "gemma-4-31B-it",
+      "case_id": "gemma_enable_thinking_false",
+      "group": "reasoning_gemma",
+      "desc": "chat_template_kwargs.enable_thinking=false",
+      "http_status": 200,
+      "elapsed_ms": 28,
+      "verdict": "pass",
+      "has_reasoning_field": false,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gemma-4-31B-it",
+      "case_id": "gemma_enable_thinking_skip_false",
+      "group": "reasoning_gemma",
+      "desc": "enable_thinking=true + skip_special_tokens=false",
+      "http_status": 200,
+      "elapsed_ms": 40,
+      "verdict": "warn",
+      "has_reasoning_field": false,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "",
+      "error_preview": null,
+      "notes": [
+        "no reasoning / reasoning_content in message"
+      ]
+    },
+    {
+      "model": "gemma-4-31B-it",
+      "case_id": "gemma_reasoning_effort_high",
+      "group": "reasoning_gemma",
+      "desc": "top-level reasoning_effort=\"high\" (vLLM auto enable_thinking)",
+      "http_status": 200,
+      "elapsed_ms": 101,
+      "verdict": "warn",
+      "has_reasoning_field": false,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "",
+      "error_preview": null,
+      "notes": [
+        "no reasoning / reasoning_content in message"
+      ]
+    },
+    {
+      "model": "gemma-4-31B-it",
+      "case_id": "gemma_reasoning_effort_none",
+      "group": "reasoning_gemma",
+      "desc": "top-level reasoning_effort=\"none\"",
+      "http_status": 200,
+      "elapsed_ms": 119,
+      "verdict": "pass",
+      "has_reasoning_field": false,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gemma-4-31B-it",
+      "case_id": "gemma_include_reasoning_false",
+      "group": "reasoning_gemma",
+      "desc": "enable_thinking=true + include_reasoning=false",
+      "http_status": 200,
+      "elapsed_ms": 34,
+      "verdict": "pass",
+      "has_reasoning_field": false,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gemma-4-31B-it",
+      "case_id": "kimi_reasoning_effort_low",
+      "group": "reasoning_kimi",
+      "desc": "reasoning_effort=\"low\" (Kimi K3 official)",
+      "http_status": 200,
+      "elapsed_ms": 496,
+      "verdict": "pass",
+      "has_reasoning_field": false,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gemma-4-31B-it",
+      "case_id": "kimi_reasoning_effort_max",
+      "group": "reasoning_kimi",
+      "desc": "reasoning_effort=\"max\" (Kimi K3 default)",
+      "http_status": 200,
+      "elapsed_ms": 113,
+      "verdict": "pass",
+      "has_reasoning_field": false,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "role"
+      ],
+      "content_preview": "555",
+      "reasoning_preview": "",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gemma-4-31B-it",
+      "case_id": "kimi_thinking_enabled",
+      "group": "reasoning_kimi",
+      "desc": "thinking={\"type\":\"enabled\"} (K2.x; K3 should not use)",
+      "http_status": 400,
+      "elapsed_ms": 2769,
+      "verdict": "fail",
+      "has_reasoning_field": false,
+      "json_loads_ok": null,
+      "message_keys": [],
+      "content_preview": "",
+      "reasoning_preview": "",
+      "error_preview": "{\"error\":{\"message\":\"litellm.UnsupportedParamsError: hosted_vllm does not support parameters: ['thinking'], for model=gemma-4-31B-it. To drop these, set `litellm.drop_params=True` or for proxy:\\n\\n`litellm_settings:\\n drop_params: true`\\n. \\n If you want to use these params dynamically send allowed_openai_params=['thinking'] in your request.. Received Model Group=gemma-4-31B-it\\nAvailable Model G…",
+      "notes": []
+    },
+    {
+      "model": "gemma-4-31B-it",
+      "case_id": "combo_json_schema_thinking",
+      "group": "combo",
+      "desc": "json_schema + enable_thinking=true",
+      "http_status": 200,
+      "elapsed_ms": 28,
+      "verdict": "pass",
+      "has_reasoning_field": false,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "role"
+      ],
+      "content_preview": "{\"ok\": true, \"n\": 1}",
+      "reasoning_preview": "",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gpt-oss-120b",
+      "case_id": "baseline",
+      "group": "baseline",
+      "desc": "No special params",
+      "http_status": 200,
+      "elapsed_ms": 236,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555.",
+      "reasoning_preview": "User asks: \"What is 15 * 37? Brief answer.\" Compute: 15*37 = 555. Provide brief answer.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gpt-oss-120b",
+      "case_id": "rf_none_json_prompt",
+      "group": "response_format",
+      "desc": "JSON via prompt only",
+      "http_status": 200,
+      "elapsed_ms": 367,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "{\"ok\": true, \"n\": 1}",
+      "reasoning_preview": "The user asks: \"Reply with ONLY JSON: {\"ok\": true, \"n\": 1}\". So we must output exactly that JSON and nothing else. Ensure no extra whitespace? The JSON object …",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gpt-oss-120b",
+      "case_id": "rf_json_object",
+      "group": "response_format",
+      "desc": "response_format={\"type\":\"json_object\"}",
+      "http_status": 200,
+      "elapsed_ms": 1401,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "{\"ok\": true, \"n\": 1}",
+      "reasoning_preview": "The user asks: \"Reply with ONLY JSON: {\"ok\": true, \"n\": 1}\". So they want exactly that JSON and nothing else. Must ensure no extra whitespace? Probably fine to…",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gpt-oss-120b",
+      "case_id": "rf_json_schema",
+      "group": "response_format",
+      "desc": "response_format={\"type\":\"json_schema\",...}",
+      "http_status": 200,
+      "elapsed_ms": 321,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "{\"ok\": true, \"n\": 1}",
+      "reasoning_preview": "The user says: \"Reply with ONLY JSON: {\"ok\": true, \"n\": 1}\". So we must output only that JSON text, no extra formatting, no explanation. So final answer: {\"ok\"…",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gpt-oss-120b",
+      "case_id": "rf_string_json",
+      "group": "response_format",
+      "desc": "response_format=\"json\" (non-standard)",
+      "http_status": 500,
+      "elapsed_ms": 3539,
+      "verdict": "fail",
+      "has_reasoning_field": false,
+      "json_loads_ok": false,
+      "message_keys": [],
+      "content_preview": "",
+      "reasoning_preview": "",
+      "error_preview": "{\"error\":{\"message\":\"litellm.APIConnectionError: APIConnectionError: Hosted_vllmException - Unsupported response_format type - json. Received Model Group=gpt-oss-120b\\nAvailable Model Group Fallbacks=None\",\"type\":null,\"param\":null,\"code\":\"500\"}}",
+      "notes": []
+    },
+    {
+      "model": "gpt-oss-120b",
+      "case_id": "gemma_enable_thinking_true",
+      "group": "reasoning_gemma",
+      "desc": "chat_template_kwargs.enable_thinking=true",
+      "http_status": 200,
+      "elapsed_ms": 38,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555.",
+      "reasoning_preview": "User asks: \"What is 15 * 37? Brief answer.\" Compute: 15*37 = 555. Provide brief answer.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gpt-oss-120b",
+      "case_id": "gemma_enable_thinking_false",
+      "group": "reasoning_gemma",
+      "desc": "chat_template_kwargs.enable_thinking=false",
+      "http_status": 200,
+      "elapsed_ms": 30,
+      "verdict": "warn",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555.",
+      "reasoning_preview": "User asks: \"What is 15 * 37? Brief answer.\" Compute: 15*37 = 555. Provide brief answer.",
+      "error_preview": null,
+      "notes": [
+        "reasoning still present when expected off/suppressed"
+      ]
+    },
+    {
+      "model": "gpt-oss-120b",
+      "case_id": "gemma_enable_thinking_skip_false",
+      "group": "reasoning_gemma",
+      "desc": "enable_thinking=true + skip_special_tokens=false",
+      "http_status": 200,
+      "elapsed_ms": 36,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555.",
+      "reasoning_preview": "User asks: \"What is 15 * 37? Brief answer.\" Compute: 15*37 = 555. Provide brief answer.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gpt-oss-120b",
+      "case_id": "gemma_reasoning_effort_high",
+      "group": "reasoning_gemma",
+      "desc": "top-level reasoning_effort=\"high\" (vLLM auto enable_thinking)",
+      "http_status": 200,
+      "elapsed_ms": 542,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555.",
+      "reasoning_preview": "We need to answer: \"What is 15 * 37? Brief answer.\"\\n\\nCompute 15 * 37 = 555? Let's calculate: 10 * 37 = 370, 5 * 37 = 185, sum = 555. Yes. So answer: 555. Pro…",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gpt-oss-120b",
+      "case_id": "gemma_reasoning_effort_none",
+      "group": "reasoning_gemma",
+      "desc": "top-level reasoning_effort=\"none\"",
+      "http_status": 400,
+      "elapsed_ms": 14039,
+      "verdict": "fail",
+      "has_reasoning_field": false,
+      "json_loads_ok": null,
+      "message_keys": [],
+      "content_preview": "",
+      "reasoning_preview": "",
+      "error_preview": "{\"error\":{\"message\":\"litellm.BadRequestError: Hosted_vllmException - litellm.BadRequestError: Hosted_vllmException - Harmony does not support reasoning_effort='none'. Received Model Group=gpt-oss-120b\\nAvailable Model Group Fallbacks=['gpt-oss-120b']\\nError doing the fallback: litellm.BadRequestError: Hosted_vllmException - Harmony does not support reasoning_effort='none' LiteLLM Retried: 1 times…",
+      "notes": []
+    },
+    {
+      "model": "gpt-oss-120b",
+      "case_id": "gemma_include_reasoning_false",
+      "group": "reasoning_gemma",
+      "desc": "enable_thinking=true + include_reasoning=false",
+      "http_status": 200,
+      "elapsed_ms": 32,
+      "verdict": "warn",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555.",
+      "reasoning_preview": "User asks: \"What is 15 * 37? Brief answer.\" Compute: 15*37 = 555. Provide brief answer.",
+      "error_preview": null,
+      "notes": [
+        "reasoning still present when expected off/suppressed"
+      ]
+    },
+    {
+      "model": "gpt-oss-120b",
+      "case_id": "kimi_reasoning_effort_low",
+      "group": "reasoning_kimi",
+      "desc": "reasoning_effort=\"low\" (Kimi K3 official)",
+      "http_status": 200,
+      "elapsed_ms": 176,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": null,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "555.",
+      "reasoning_preview": "Just calculate. 15*37 = 555.",
+      "error_preview": null,
+      "notes": []
+    },
+    {
+      "model": "gpt-oss-120b",
+      "case_id": "kimi_reasoning_effort_max",
+      "group": "reasoning_kimi",
+      "desc": "reasoning_effort=\"max\" (Kimi K3 default)",
+      "http_status": 400,
+      "elapsed_ms": 11924,
+      "verdict": "fail",
+      "has_reasoning_field": false,
+      "json_loads_ok": null,
+      "message_keys": [],
+      "content_preview": "",
+      "reasoning_preview": "",
+      "error_preview": "{\"error\":{\"message\":\"litellm.BadRequestError: Hosted_vllmException - litellm.BadRequestError: Hosted_vllmException - reasoning_effort='max' is not supported by Harmony. Supported values are: high, medium, low.. Received Model Group=gpt-oss-120b\\nAvailable Model Group Fallbacks=['gpt-oss-120b']\\nError doing the fallback: litellm.BadRequestError: Hosted_vllmException - reasoning_effort='max' is not…",
+      "notes": []
+    },
+    {
+      "model": "gpt-oss-120b",
+      "case_id": "kimi_thinking_enabled",
+      "group": "reasoning_kimi",
+      "desc": "thinking={\"type\":\"enabled\"} (K2.x; K3 should not use)",
+      "http_status": 400,
+      "elapsed_ms": 2986,
+      "verdict": "fail",
+      "has_reasoning_field": false,
+      "json_loads_ok": null,
+      "message_keys": [],
+      "content_preview": "",
+      "reasoning_preview": "",
+      "error_preview": "{\"error\":{\"message\":\"litellm.UnsupportedParamsError: hosted_vllm does not support parameters: ['thinking'], for model=gpt-oss-120b. To drop these, set `litellm.drop_params=True` or for proxy:\\n\\n`litellm_settings:\\n drop_params: true`\\n. \\n If you want to use these params dynamically send allowed_openai_params=['thinking'] in your request.. Received Model Group=gpt-oss-120b\\nAvailable Model Group…",
+      "notes": []
+    },
+    {
+      "model": "gpt-oss-120b",
+      "case_id": "combo_json_schema_thinking",
+      "group": "combo",
+      "desc": "json_schema + enable_thinking=true",
+      "http_status": 200,
+      "elapsed_ms": 36,
+      "verdict": "pass",
+      "has_reasoning_field": true,
+      "json_loads_ok": true,
+      "message_keys": [
+        "content",
+        "provider_specific_fields",
+        "reasoning_content",
+        "role"
+      ],
+      "content_preview": "{\"ok\": true, \"n\": 1}",
+      "reasoning_preview": "The user says: \"Reply with ONLY JSON: {\"ok\": true, \"n\": 1}\". So we must output only that JSON text, no extra formatting, no explanation. So final answer: {\"ok\"…",
+      "error_preview": null,
+      "notes": []
+    }
+  ]
+}
