@@ -1,0 +1,596 @@
+{
+  "meta": {
+    "base_url": "https://inner-medusa.genai.nchc.org.tw/v1",
+    "profile": "generic",
+    "effort": [
+      "low",
+      "medium",
+      "high",
+      "max",
+      "none"
+    ],
+    "steps": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F"
+    ],
+    "started_at": "2026-08-14T14:00:31.469100+08:00",
+    "counts": {
+      "可用": 24
+    },
+    "finished_at": "2026-08-14T14:01:19.152996+08:00"
+  },
+  "models": {
+    "Kimi-K3": {
+      "present": true,
+      "effort": [
+        "low",
+        "medium",
+        "high",
+        "max",
+        "none"
+      ],
+      "results": [
+        {
+          "step": "A",
+          "case_id": "A.enable",
+          "desc": "預設一槍（看 reasoning）",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 1076,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 231,
+          "usage": {
+            "completion_tokens": 70,
+            "prompt_tokens": 150,
+            "total_tokens": 220,
+            "completion_tokens_details": {
+              "reasoning_tokens": 59,
+              "text_tokens": 11
+            }
+          },
+          "finish_reason": "stop",
+          "content_preview": "8",
+          "reasoning_preview": "The user asks to answer 3+5 with one-step reasoning and finally output only the number. We already called functions. Now final answer should be only \"8\". Need …",
+          "error_preview": null,
+          "notes": "預設有 reasoning 欄位"
+        },
+        {
+          "step": "A",
+          "case_id": "A.effort_low",
+          "desc": "reasoning_effort=low",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 1419,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 279,
+          "usage": {
+            "completion_tokens": 77,
+            "prompt_tokens": 151,
+            "total_tokens": 228,
+            "completion_tokens_details": {
+              "reasoning_tokens": 66,
+              "text_tokens": 11
+            }
+          },
+          "finish_reason": "stop",
+          "content_preview": "8",
+          "reasoning_preview": "The user asks in Chinese: answer with one-step reasoning: 3+5=? Finally only output number. Need final only number. We can compute 8. Must ensure final only nu…",
+          "error_preview": null,
+          "notes": "reason_chars=279 tokens=77"
+        },
+        {
+          "step": "A",
+          "case_id": "A.effort_medium",
+          "desc": "reasoning_effort=medium",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 1093,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 48,
+          "usage": {
+            "completion_tokens": 45,
+            "prompt_tokens": 150,
+            "total_tokens": 195,
+            "completion_tokens_details": {
+              "reasoning_tokens": 34,
+              "text_tokens": 11
+            }
+          },
+          "finish_reason": "stop",
+          "content_preview": "8",
+          "reasoning_preview": "用户要求用一步推理回答 3+5=？，最后只输出数字。需要确保最终只输出数字 8。不需要其他文字。",
+          "error_preview": null,
+          "notes": "reason_chars=48 tokens=45"
+        },
+        {
+          "step": "A",
+          "case_id": "A.effort_high",
+          "desc": "reasoning_effort=high",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 1229,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 167,
+          "usage": {
+            "completion_tokens": 56,
+            "prompt_tokens": 151,
+            "total_tokens": 207,
+            "completion_tokens_details": {
+              "reasoning_tokens": 45,
+              "text_tokens": 11
+            }
+          },
+          "finish_reason": "stop",
+          "content_preview": "8",
+          "reasoning_preview": "The user asks in Chinese: answer with one-step reasoning: 3+5=? finally only output number. Need final only digit. Use tool. Then final \"8\" only. Ensure no ext…",
+          "error_preview": null,
+          "notes": "reason_chars=167 tokens=56"
+        },
+        {
+          "step": "A",
+          "case_id": "A.effort_max",
+          "desc": "reasoning_effort=max",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 1536,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 344,
+          "usage": {
+            "completion_tokens": 108,
+            "prompt_tokens": 150,
+            "total_tokens": 258,
+            "completion_tokens_details": {
+              "reasoning_tokens": 97,
+              "text_tokens": 11
+            }
+          },
+          "finish_reason": "stop",
+          "content_preview": "8",
+          "reasoning_preview": "The user asks: \"用一步推理回答：3+5=？最後只輸出數字。\" Meaning answer with one-step reasoning: 3+5=? finally only output number. Need final only output number. No need other t…",
+          "error_preview": null,
+          "notes": "reason_chars=344 tokens=108"
+        },
+        {
+          "step": "A",
+          "case_id": "A.effort_compare",
+          "desc": "effort 各檔對照",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 1536,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 344,
+          "usage": {
+            "completion_tokens": 108,
+            "prompt_tokens": 150,
+            "total_tokens": 258,
+            "completion_tokens_details": {
+              "reasoning_tokens": 97,
+              "text_tokens": 11
+            }
+          },
+          "finish_reason": "stop",
+          "content_preview": "8",
+          "reasoning_preview": "The user asks: \"用一步推理回答：3+5=？最後只輸出數字。\" Meaning answer with one-step reasoning: 3+5=? finally only output number. Need final only output number. No need other t…",
+          "error_preview": null,
+          "notes": "low:279ch/1419ms, medium:48ch/1093ms, high:167ch/1229ms, max:344ch/1536ms"
+        },
+        {
+          "step": "A",
+          "case_id": "A.effort_invalid",
+          "desc": "reasoning_effort=not-a-level 應拒",
+          "verdict": "pass",
+          "http_status": 400,
+          "elapsed_ms": 22293,
+          "has_reasoning": false,
+          "has_tool_calls": false,
+          "json_ok": false,
+          "reasoning_chars": 0,
+          "usage": null,
+          "finish_reason": null,
+          "content_preview": "",
+          "reasoning_preview": "",
+          "error_preview": "{\"error\":{\"message\":\"litellm.BadRequestError: Hosted_vllmException - litellm.BadRequestError: Hosted_vllmException - 2 validation errors:\\n  {'type': 'literal_error', 'loc': ('body', 'reasoning_effort', \\\"literal['none','minimal','low','medium','high','xhigh','max']\\\"), 'msg': \\\"Input should be 'none', 'minimal', 'low', 'medium', 'high', 'xhigh' or 'max'\\\", 'input': 'not-a-level', 'ctx': {'expect…",
+          "notes": ""
+        },
+        {
+          "step": "A",
+          "case_id": "A.effort_none",
+          "desc": "reasoning_effort=none",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 426,
+          "has_reasoning": false,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 0,
+          "usage": {
+            "completion_tokens": 8,
+            "prompt_tokens": 83,
+            "total_tokens": 91
+          },
+          "finish_reason": "stop",
+          "content_preview": "8",
+          "reasoning_preview": "",
+          "error_preview": null,
+          "notes": ""
+        },
+        {
+          "step": "A",
+          "case_id": "A.multiturn",
+          "desc": "多輪回傳完整 assistant",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 1398,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 314,
+          "usage": {
+            "completion_tokens": 86,
+            "prompt_tokens": 253,
+            "total_tokens": 339,
+            "completion_tokens_details": {
+              "reasoning_tokens": 75,
+              "text_tokens": 11
+            }
+          },
+          "finish_reason": "stop",
+          "content_preview": "8",
+          "reasoning_preview": "The user asks to confirm previous answer, only output number. So final: 8. No tools.\\nDouble-check prior: User asked 3+5 with one-step reasoning and final only…",
+          "error_preview": null,
+          "notes": ""
+        },
+        {
+          "step": "B",
+          "case_id": "B.none",
+          "desc": "不帶 response_format",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 1058,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 287,
+          "usage": {
+            "completion_tokens": 91,
+            "prompt_tokens": 139,
+            "total_tokens": 230,
+            "completion_tokens_details": {
+              "reasoning_tokens": 70,
+              "text_tokens": 21
+            }
+          },
+          "finish_reason": "stop",
+          "content_preview": "{\"ok\": true, \"n\": 1}",
+          "reasoning_preview": "The user is asking me to reply with ONLY JSON: {\"ok\": true, \"n\": 1}\\n\\nThis is a simple, benign request. They want me to output exactly that JSON and nothing e…",
+          "error_preview": null,
+          "notes": "soft：不一定是 JSON"
+        },
+        {
+          "step": "B",
+          "case_id": "B.json_object",
+          "desc": "json_object",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 846,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 181,
+          "usage": {
+            "completion_tokens": 56,
+            "prompt_tokens": 186,
+            "total_tokens": 242,
+            "completion_tokens_details": {
+              "reasoning_tokens": 44,
+              "text_tokens": 12
+            }
+          },
+          "finish_reason": "stop",
+          "content_preview": "{\"ok\": true, \"n\": 1}",
+          "reasoning_preview": "The user wants me to reply with ONLY JSON: {\"ok\": true, \"n\": 1}. Simple instruction. I should output exactly that JSON, no markdown code blocks per the respons…",
+          "error_preview": null,
+          "notes": ""
+        },
+        {
+          "step": "B",
+          "case_id": "B.json_schema",
+          "desc": "json_schema strict",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 862,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 165,
+          "usage": {
+            "completion_tokens": 54,
+            "prompt_tokens": 230,
+            "total_tokens": 284,
+            "completion_tokens_details": {
+              "reasoning_tokens": 42,
+              "text_tokens": 12
+            }
+          },
+          "finish_reason": "stop",
+          "content_preview": "{\"ok\": true, \"n\": 1}",
+          "reasoning_preview": "The user wants me to reply with only JSON: {\"ok\": true, \"n\": 1}. The response format specifies a JSON schema that matches. I should output raw JSON without mar…",
+          "error_preview": null,
+          "notes": ""
+        },
+        {
+          "step": "B",
+          "case_id": "B.string_json",
+          "desc": "非標準字串 json 應拒",
+          "verdict": "pass",
+          "http_status": 500,
+          "elapsed_ms": 3265,
+          "has_reasoning": false,
+          "has_tool_calls": false,
+          "json_ok": false,
+          "reasoning_chars": 0,
+          "usage": null,
+          "finish_reason": null,
+          "content_preview": "",
+          "reasoning_preview": "",
+          "error_preview": "{\"error\":{\"message\":\"litellm.APIConnectionError: APIConnectionError: Hosted_vllmException - Unsupported response_format type - json. Received Model Group=Kimi-K3\\nAvailable Model Group Fallbacks=None\",\"type\":null,\"param\":null,\"code\":\"500\"}}\\n",
+          "notes": ""
+        },
+        {
+          "step": "C",
+          "case_id": "C.auto",
+          "desc": "tool_choice=auto",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 1281,
+          "has_reasoning": true,
+          "has_tool_calls": true,
+          "json_ok": false,
+          "reasoning_chars": 99,
+          "usage": {
+            "completion_tokens": 85,
+            "prompt_tokens": 181,
+            "total_tokens": 266,
+            "completion_tokens_details": {
+              "reasoning_tokens": 26,
+              "text_tokens": 59
+            }
+          },
+          "finish_reason": "tool_calls",
+          "content_preview": "I'll check the weather in Taipei for you right away.",
+          "reasoning_preview": "The user asked to get the weather in Taipei and use the tool. Let me call the get_weather function.",
+          "error_preview": null,
+          "notes": ""
+        },
+        {
+          "step": "C",
+          "case_id": "C.required",
+          "desc": "tool_choice=required",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 2557,
+          "has_reasoning": true,
+          "has_tool_calls": true,
+          "json_ok": false,
+          "reasoning_chars": 182,
+          "usage": {
+            "completion_tokens": 89,
+            "prompt_tokens": 217,
+            "total_tokens": 306,
+            "completion_tokens_details": {
+              "reasoning_tokens": 44,
+              "text_tokens": 45
+            }
+          },
+          "finish_reason": "tool_calls",
+          "content_preview": "",
+          "reasoning_preview": "The user is asking for the weather in Taipei and explicitly wants me to use the tool. I have a get_weather tool available that takes a city parameter. I should…",
+          "error_preview": null,
+          "notes": ""
+        },
+        {
+          "step": "C",
+          "case_id": "C.none",
+          "desc": "tool_choice=none",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 2435,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": false,
+          "reasoning_chars": 596,
+          "usage": {
+            "completion_tokens": 172,
+            "prompt_tokens": 134,
+            "total_tokens": 306,
+            "completion_tokens_details": {
+              "reasoning_tokens": 122,
+              "text_tokens": 50
+            }
+          },
+          "finish_reason": "stop",
+          "content_preview": "I can’t access a live weather tool from here right now. For the current weather in Taipei, please check Taiwan’s Central Weather Administration or a weather ap…",
+          "reasoning_preview": "We need answer user asks weather in Taipei and says use the tool. Need not call any tools. Need answer can't use tools? We should explain I don't have access t…",
+          "error_preview": null,
+          "notes": ""
+        },
+        {
+          "step": "D",
+          "case_id": "D.sse",
+          "desc": "stream=true SSE",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 1013,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 170,
+          "usage": null,
+          "finish_reason": null,
+          "content_preview": "8",
+          "reasoning_preview": "The user is asking in Chinese: \"Answer with one-step reasoning: 3+5=? Finally output only the number.\"\\n\\nThey want just the number output. 3+5=8. I should jus…",
+          "error_preview": null,
+          "notes": ""
+        },
+        {
+          "step": "D",
+          "case_id": "D.reasoning_delta",
+          "desc": "reasoning 獨立 delta",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 1013,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 170,
+          "usage": null,
+          "finish_reason": null,
+          "content_preview": "8",
+          "reasoning_preview": "The user is asking in Chinese: \"Answer with one-step reasoning: 3+5=? Finally output only the number.\"\\n\\nThey want just the number output. 3+5=8. I should jus…",
+          "error_preview": null,
+          "notes": ""
+        },
+        {
+          "step": "D",
+          "case_id": "D.done",
+          "desc": "結尾 [DONE]",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 1013,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 170,
+          "usage": null,
+          "finish_reason": null,
+          "content_preview": "8",
+          "reasoning_preview": "The user is asking in Chinese: \"Answer with one-step reasoning: 3+5=? Finally output only the number.\"\\n\\nThey want just the number output. 3+5=8. I should jus…",
+          "error_preview": null,
+          "notes": ""
+        },
+        {
+          "step": "D",
+          "case_id": "D.tool_delta",
+          "desc": "stream + tools",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 1576,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": false,
+          "reasoning_chars": 242,
+          "usage": null,
+          "finish_reason": null,
+          "content_preview": "I'll check the weather in Taipei for you right now.\\n\\n**Calling tool: get_weather** with parameter city=\"Taipei\"",
+          "reasoning_preview": "The user is asking about the weather in Taipei and explicitly wants me to use the available tool. I have a get_weather function available that takes a city par…",
+          "error_preview": null,
+          "notes": ""
+        },
+        {
+          "step": "E",
+          "case_id": "E.temperature",
+          "desc": "temperature=0.2",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 1222,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 217,
+          "usage": {
+            "completion_tokens": 85,
+            "prompt_tokens": 142,
+            "total_tokens": 227,
+            "completion_tokens_details": {
+              "reasoning_tokens": 74,
+              "text_tokens": 11
+            }
+          },
+          "finish_reason": "stop",
+          "content_preview": "8",
+          "reasoning_preview": "The user asks in Chinese: \"用一步推理回答：3+5=？最後只輸出數字。\" Means answer with one-step reasoning: 3+5=? Finally only output the number. Need final only number. We can co…",
+          "error_preview": null,
+          "notes": "腳本只記閘道是否接受；官方若固定勿改，對照 PARAMS.md"
+        },
+        {
+          "step": "F",
+          "case_id": "F.schema_reasoning",
+          "desc": "schema + 預設請求",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 72,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 165,
+          "usage": {
+            "completion_tokens": 54,
+            "prompt_tokens": 230,
+            "total_tokens": 284,
+            "completion_tokens_details": {
+              "reasoning_tokens": 42,
+              "text_tokens": 12
+            }
+          },
+          "finish_reason": "stop",
+          "content_preview": "{\"ok\": true, \"n\": 1}",
+          "reasoning_preview": "The user wants me to reply with only JSON: {\"ok\": true, \"n\": 1}. The response format specifies a JSON schema that matches. I should output raw JSON without mar…",
+          "error_preview": null,
+          "notes": "只 parse content"
+        },
+        {
+          "step": "F",
+          "case_id": "F.stream_reasoning",
+          "desc": "stream + 預設請求",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 64,
+          "has_reasoning": false,
+          "has_tool_calls": false,
+          "json_ok": true,
+          "reasoning_chars": 0,
+          "usage": null,
+          "finish_reason": null,
+          "content_preview": "8",
+          "reasoning_preview": "",
+          "error_preview": null,
+          "notes": ""
+        },
+        {
+          "step": "F",
+          "case_id": "F.stream_tools",
+          "desc": "stream + tools",
+          "verdict": "pass",
+          "http_status": 200,
+          "elapsed_ms": 946,
+          "has_reasoning": true,
+          "has_tool_calls": false,
+          "json_ok": false,
+          "reasoning_chars": 160,
+          "usage": null,
+          "finish_reason": null,
+          "content_preview": "",
+          "reasoning_preview": "The user is asking about the weather in Taipei and explicitly says to use the tool. I have a get_weather tool available. Let me call it with Taipei as the city.",
+          "error_preview": null,
+          "notes": ""
+        }
+      ]
+    }
+  }
+}
