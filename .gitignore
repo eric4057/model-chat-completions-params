@@ -5,6 +5,7 @@ __pycache__/
 .env.*
 *.pem
 .DS_Store
+RESULTS.md
 results/*
 !results/.gitkeep
 .codegraph/

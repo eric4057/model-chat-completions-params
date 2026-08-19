@@ -6,11 +6,10 @@
 |------|------|
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | 測什麼（A→F 流程與判定） |
 | [PARAMS.md](./PARAMS.md) | Gemma 4 / Kimi K3 官方參數（說明，不進腳本） |
-| [RESULTS.md](./RESULTS.md) | 指向 `results/*.json`（說明寫在 JSON 的 `meta.read`） |
 | `env.example` | 複製成 `.env` 後填變數 |
 | `scripts/probe_flowchart.py` | 探測腳本（`curl`） |
 | `configs/profiles/generic.json` | 考卷（三句 prompt） |
-| `results/` | 當次輸出 JSON |
+| `results/` | 當次輸出 JSON（`meta.read` 含讀檔說明；不進版控） |
 
 ## 跑一次
 

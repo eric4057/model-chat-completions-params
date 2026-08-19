@@ -1,7 +1,7 @@
 # `/v1/chat/completions` 參數啟用對照（Gemma 4 / Kimi K3）
 
 整理日期：2026-08-19。以 **model card / LiteLLM / vLLM / Moonshot** 官方文件為準。  
-範圍只含 **Gemma 4、Kimi K3**。怎麼測見 [ARCHITECTURE.md](./ARCHITECTURE.md)、[README.md](./README.md)；閘道實測看 `results/*.json` 的 `meta.read`（不要把 snapshot 寫進 RESULTS.md）。
+範圍只含 **Gemma 4、Kimi K3**。怎麼測見 [ARCHITECTURE.md](./ARCHITECTURE.md)、[README.md](./README.md)；閘道實測看 `results/*.json` 的 `meta.read`（本機產出，不進版控）。
 
 **官方 ≠ 閘道。** 下表是廠商契約。經 LiteLLM 轉發時，參數可能被丟棄、枚舉被放寬，或 HTTP 200 但欄位沒生效。
 
@@ -14,7 +14,7 @@
 | 能力 / 參數 | Gemma 4 | Kimi K3 | 資料來源 |
 |-------------|---------|---------|----------|
 | Thinking 預設 | **關**；需顯式開啟 | **永遠開**；無法關閉 | [Gemma model card](https://ai.google.dev/gemma/docs/core/model_card_4)、[vLLM Reasoning](https://docs.vllm.ai/en/latest/features/reasoning_outputs/)、[Kimi Reasoning Effort](https://platform.kimi.ai/docs/guide/use-reasoning-effort) |
-| 開啟 / 調整 thinking | 官方 **開／關**：`chat_template_kwargs.enable_thinking=true`。vLLM **直連**時頂層 `reasoning_effort` 會**自動注入** enable（**不是** Kimi 式可觀測強度；**經閘道不保證**） | 頂層 `reasoning_effort=low`/`high`/`max`（預設 `max`） | [Gemma prompt formatting](https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4)、[vLLM Reasoning](https://docs.vllm.ai/en/latest/features/reasoning_outputs/)、[vLLM Gemma4 recipe](https://docs.vllm.ai/projects/recipes/en/stable/Google/Gemma4.html)、[Kimi Reasoning Effort](https://platform.kimi.ai/docs/guide/use-reasoning-effort) |
+| 開啟 / 調整 thinking | 官方 **開／關**：`chat_template_kwargs.enable_thinking=true`。vLLM **直連**時頂層 `reasoning_effort` 會**自動注入** enable | 頂層 `reasoning_effort=low`/`high`/`max`（預設 `max`） | [Gemma prompt formatting](https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4)、[vLLM Reasoning](https://docs.vllm.ai/en/latest/features/reasoning_outputs/)、[vLLM Gemma4 recipe](https://docs.vllm.ai/projects/recipes/en/stable/Google/Gemma4.html)、[Kimi Reasoning Effort](https://platform.kimi.ai/docs/guide/use-reasoning-effort) |
 | `reasoning_effort` 取值 | vLLM 注入用：`low`/`medium`/`high`/`none`（`none`＝關；**無官方 `max` 強度檔**） | `low`/`high`/`max`（**無** `none`/`medium`） | [vLLM Reasoning](https://docs.vllm.ai/en/latest/features/reasoning_outputs/)、[Kimi models-overview](https://platform.kimi.ai/docs/api/models-overview) |
 | 舊版 `thinking` 物件 | 不適用 | **不要傳**（K2.x）；改用 `reasoning_effort` | [Kimi models-overview](https://platform.kimi.ai/docs/api/models-overview) |
 | Token / template 層 | system 加 `<\|think\|>`；輸出 `<\|channel>thought`…；多輪一般剝掉 thought（tool 回合例外） | Preserved Thinking；多輪須回傳完整 assistant | [Gemma model card](https://ai.google.dev/gemma/docs/core/model_card_4)、[Gemma prompt formatting](https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4)、[Kimi thinking](https://platform.kimi.ai/docs/guide/use-thinking-models) |
@@ -30,7 +30,6 @@
 | vLLM 伺服器旗標 | `--reasoning-parser gemma4`、`--tool-call-parser gemma4`、`--enable-auto-tool-choice`、建議 `--chat-template examples/tool_chat_template_gemma4.jinja`、可選 `--default-chat-template-kwargs` | 以 Moonshot Chat Completions 為準（開源部署另查） | [vLLM Gemma4 recipe](https://docs.vllm.ai/projects/recipes/en/stable/Google/Gemma4.html) |
 | LiteLLM / 閘道注意 | `chat_template_kwargs` 可能被丟；effort 自動注入常失效；`allowed_openai_params` 強制透傳可能 500；部分 model group 拒 `reasoning_effort` | `moonshot/kimi-k3` 透傳 `reasoning_effort`（含 `max`）；閘道枚舉可能寬於官方 | [LiteLLM VLLM](https://docs.litellm.ai/docs/providers/vllm)、[LiteLLM PR #33675](https://github.com/BerriAI/litellm/pull/33675)、[LiteLLM Reasoning](https://docs.litellm.ai/docs/reasoning_content) |
 
-> 閘道枚舉較寬（如 Kimi 接受 `medium`/`none`、Gemma 接受 `max`）只代表 proxy 校驗，**不代表官方有該檔**。細節分表見 §0。
 
 ---
 
@@ -297,7 +296,7 @@ curl "$BASE/chat/completions" \
 | 項目 | 值 / 用法 | 說明 | 來源 |
 |------|-----------|------|------|
 | 流程與判定 | A→F | `probe_flowchart.py` | [ARCHITECTURE.md](./ARCHITECTURE.md)、[README.md](./README.md) |
-| 讀結果 | `results/flowchart_*.json` | `meta.read`、`request`、`compare` | [RESULTS.md](./RESULTS.md)（僅索引，不寫 snapshot） |
+| 讀結果 | `results/flowchart_*.json` | `meta.read`、`request`、`compare` | 本機 `results/`（不進版控） |
 | `request.reasoning_effort` | 實際 POST | 只證明有沒有送到閘道 | 腳本 JSON |
 | `compare.vs_default` | `like_default` / `not_default` | 像不像預設；**不能**證明就是官方獨立檔。`intensity_testable=false` 時不要當 Gemma 強度結論 | [ARCHITECTURE.md](./ARCHITECTURE.md) |
 | Gemma 矩陣 | `ENABLE_THINKING` × `STREAM_STEPS` | 觀測 reasoning 常需 `enable_thinking=true` 且非串流；E4B 在非串流下只送 effort 也可能開 thinking | 閘道實測：`results/*.json` |
