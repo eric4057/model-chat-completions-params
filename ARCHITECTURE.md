@@ -2,7 +2,7 @@
 
 對齊 `scripts/probe_flowchart.py`（`STEPS = A, B, C, D, E, F`）。  
 用系統 `curl` 打 `GET /models` 與 `POST /chat/completions`。題目在 `configs/profiles/generic.json`。  
-Gemma／Kimi 官方填法在 [PARAMS.md](./PARAMS.md)，**腳本不讀**；跑完用人對 [RESULTS.md](./RESULTS.md)。  
+Gemma／Kimi 官方填法在 [PARAMS.md](./PARAMS.md)，**腳本不讀**。跑完看 `results/flowchart_*.json` 的 `meta.read`、`request`、`compare`。  
 vLLM `--reasoning-parser`／`--tool-call-parser`、LiteLLM 是否丟參數：腳本當客戶端看不到，不列入步驟。
 
 `.env`：`OPENAI_BASE_URL`、`OPENAI_API_KEY`、`MODEL`（必須是閘道 `/models` 上的 id）。
@@ -14,6 +14,18 @@ vLLM `--reasoning-parser`／`--tool-call-parser`、LiteLLM 是否丟參數：腳
 建議值與官網連結見 `env.example`。shell 已 `export` 的同名變數會蓋過 `.env`。
 
 進 A 之後單題失敗**不中止**，記判定後繼續；最後才寫 `results/flowchart_<MODEL>_<時間>.json`。
+
+每筆 JSON 含：
+- `request`：實際 POST 欄位（不含完整 messages）→ 證明**有沒有送到**
+- effort 槍另含 `compare`（優先 `usage.completion_tokens_details.reasoning_tokens`，沒有才用字數）
+
+| `compare` | 值 | 意思 |
+|-----------|----|------|
+| `vs_default` | `like_default` / `not_default` / `unknown` | 像不像不帶參數的那槍 |
+| `vs_max` | `like_max` / `not_like_max` / `null` | 像不像本次的 `max` 槍（沒掃 max 則 null） |
+| `this` / `default` / `max` | 數字 | 本次／預設／max 的思考量 |
+
+`like_default`（或像已確認為預設的 `max`）→ **不是獨立檔**。`not_default` 只證明不是預設，**不能**證明就是官方的 `medium`／`high`。
 
 ```mermaid
 flowchart LR
@@ -37,17 +49,19 @@ flowchart LR
 
 探測閘道有沒有 thinking／`reasoning_effort`。掃哪些字看 `REASONING_EFFORT`；沒設則用 `low/medium/high/max/none`（探測聯集，不是每個模型官方都有）。非 200 記 SKIP。
 
+**Gemma 4 在此閘道能判的只有「會不會想／能不能關」**，不能判 `low`/`medium`/`high` 想得多深：vLLM 對 Gemma 的 `reasoning_effort` 主要是注入 `enable_thinking`，回應多半沒有 `reasoning_tokens`，字數比強度不可靠。`ENABLE_THINKING=true` 時預設已經在想，effort 槍會全像預設——腳本會標 `intensity_testable=false`，不再當成「參數沒生效」。Kimi 才適合用 `reasoning_tokens` 比強度。
+
 依序 POST：`enable` → 各檔 effort → `invalid` →（有設 `none` 才打）→（`enable` 是 200 才打 `multiturn`）→ B。
 
 ```mermaid
 flowchart LR
-  enable --> effort --> invalid --> B
+  enable --> effort --> invalid --> none --> B
 ```
 
 | case_id | 請求 | 判定 |
 |---------|------|------|
 | `A.enable` | 不帶 extra | 有 `reasoning`／`reasoning_content` → OK；200 無欄位 → NOOP；非 200 → FAIL |
-| `A.effort_low` … `A.effort_max` | `reasoning_effort=<該字>` | 非 200 → SKIP；200 無欄位 → NOOP；200 有欄位但字數≈`A.enable` → NOOP（忽略此值或就是預設）；明顯異於預設 → OK |
+| `A.effort_low` … `A.effort_max` | `reasoning_effort=<該字>` | 非 200 → SKIP；200 無欄位 → NOOP。**`ENABLE_THINKING=true` 時不比強度**（`compare.intensity_testable=false`），有 reasoning 只記「有送到」。未強制 thinking 時：`like_default` → NOOP；`not_default` → OK（只證明不是預設）。Gemma 在此閘道多半**沒有 `reasoning_tokens`**，不能用字數判斷 low/high |
 | `A.effort_invalid` | `reasoning_effort=not-a-level` | ≥400 → OK；200 → NOOP（沒在驗證枚舉） |
 | `A.effort_none` | `reasoning_effort=none` | 非 200 → SKIP；仍有 reasoning → NOOP |
 | `A.multiturn` | 把 `A.enable` 的 assistant（含 reasoning）塞回再問一次 | 僅 enable 為 200 才打；該槍 200 → OK |
@@ -101,7 +115,7 @@ flowchart LR
 |---------|------|------|
 | `E.temperature` | `temperature=0.2` | 200 → OK；否則 FAIL |
 
-腳本不管官方能不能改 sampling。若 PARAMS 寫死不可改而閘道仍 200，人在 RESULTS 註「與官方不符」。
+腳本不管官方能不能改 sampling。官方若固定不可改而閘道仍 200，看該次 JSON 的 `E.temperature`（`request` 有 `temperature`、`verdict` 為 pass 即閘道接受）。
 
 ---
 

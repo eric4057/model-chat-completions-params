@@ -6,7 +6,7 @@
 |------|------|
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | 測什麼（A→F 流程與判定） |
 | [PARAMS.md](./PARAMS.md) | Gemma 4 / Kimi K3 官方參數（說明，不進腳本） |
-| [RESULTS.md](./RESULTS.md) | inner-medusa 實測摘要 |
+| [RESULTS.md](./RESULTS.md) | 指向 `results/*.json`（說明寫在 JSON 的 `meta.read`） |
 | `env.example` | 複製成 `.env` 後填變數 |
 | `scripts/probe_flowchart.py` | 探測腳本（`curl`） |
 | `configs/profiles/generic.json` | 考卷（三句 prompt） |
@@ -17,14 +17,14 @@
 ```bash
 cp env.example .env
 # 必填：OPENAI_BASE_URL、OPENAI_API_KEY、MODEL
-# 可選：REASONING_EFFORT、ENABLE_THINKING（僅 Gemma 4，見 .env 註解）
+# 可選：REASONING_EFFORT、ENABLE_THINKING（僅 Gemma 4）、STREAM_STEPS（見 .env 註解）
 python3 -u scripts/probe_flowchart.py
 ```
 
 已 `export` 的同名變數會蓋過 `.env`：
 
 ```bash
-unset MODEL OPENAI_BASE_URL OPENAI_API_KEY REASONING_EFFORT ENABLE_THINKING
+unset MODEL OPENAI_BASE_URL OPENAI_API_KEY REASONING_EFFORT ENABLE_THINKING STREAM_STEPS
 ```
 
 ## 環境變數
@@ -36,15 +36,18 @@ unset MODEL OPENAI_BASE_URL OPENAI_API_KEY REASONING_EFFORT ENABLE_THINKING
 | `MODEL` | ✅ | `GET /models` 上的 id |
 | `REASONING_EFFORT` | — | 逗號分隔；空白＝掃 `low,medium,high,max,none` |
 | `ENABLE_THINKING` | — | `true`＝每槍帶 `chat_template_kwargs.enable_thinking=true`（**僅 Gemma 4**） |
+| `STREAM_STEPS` | — | `true`＝全部強制串流；`false`＝全部關閉串流；不設＝預設（D/F 使用串流，其他不使用） |
 
 ## 判定
 
 | 終端 | 意思 |
 |------|------|
 | OK | 預期成立 |
-| NOOP | 200 但參數／欄位未生效 |
+| NOOP | 200 但參數／欄位未生效（effort 常見：`compare.vs_default=like_default`） |
 | SKIP | 該參數閘道不接受（4xx） |
 | FAIL | 應成功卻失敗 |
+
+結果 JSON 每筆有 `request`（實際 POST）。A 的 effort 槍另有 `compare.vs_default`：`like_default`＝像預設；`not_default`＝不是預設（**不是**「證實就是該檔」）。細節見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 
 ## 架構概念
 

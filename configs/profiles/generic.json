@@ -1,5 +1,5 @@
 {
-  "prompt": "用一步推理回答：3+5=？最後只輸出數字。",
+  "prompt": "'量子力學是什麼？與物理學是甚麼關係？'。",
   "prompt_json": "Reply with ONLY JSON: {\"ok\": true, \"n\": 1}",
   "prompt_tool": "What is the weather in Taipei? Use the tool."
 }

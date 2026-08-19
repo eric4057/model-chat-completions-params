@@ -4,6 +4,7 @@
 Required env: OPENAI_BASE_URL  OPENAI_API_KEY  MODEL
 Optional: REASONING_EFFORT=low,high,max  (comma list; unset = probe union)
 Optional: ENABLE_THINKING=true  (inject chat_template_kwargs.enable_thinking)
+Optional: STREAM_STEPS=true|false  (true=全部 stream；false=全關；不設=D/F 照常)
 """
 
 from __future__ import annotations
@@ -27,9 +28,10 @@ PROBE_ENV = (
     "MODEL",
     "REASONING_EFFORT",
     "ENABLE_THINKING",
+    "STREAM_STEPS",
 )
 TIMEOUT_S = 180
-MAX_TOKENS = 512
+MAX_TOKENS = 1024
 DEFAULT_EFFORT = ("low", "medium", "high", "max")
 
 JSON_SCHEMA = {
@@ -133,6 +135,21 @@ ENABLE_THINKING = os.environ.get("ENABLE_THINKING", "").strip().lower() in (
     "yes",
     "on",
 )
+
+_STREAM_RAW = os.environ.get("STREAM_STEPS", "").strip().lower()
+# None = 預設（D/F 照常）；True = 全強制串流；False = 全關
+STREAM_STEPS: bool | None = (
+    True if _STREAM_RAW in ("1", "true", "yes", "on")
+    else False if _STREAM_RAW in ("0", "false", "no", "off")
+    else None
+)
+
+
+def use_stream(default: bool) -> bool:
+    """STREAM_STEPS=true → 全開；false → 全關；不設 → 用 default（D/F 才是 True）。"""
+    if STREAM_STEPS is None:
+        return default
+    return STREAM_STEPS
 
 
 def _preview(text: Any, n: int = 160) -> str:
@@ -312,10 +329,22 @@ EMPTY = {
 }
 
 
+def request_sent(body: dict[str, Any]) -> dict[str, Any]:
+    """POST body minus full messages（證明有沒有帶 reasoning_effort 等）。"""
+    snap = {k: v for k, v in body.items() if k != "messages"}
+    msgs = body.get("messages") or []
+    snap["message_count"] = len(msgs)
+    if msgs and isinstance(msgs[0], dict):
+        snap["first_user"] = _preview(msgs[0].get("content"), 80)
+    return snap
+
+
 def post_chat(payload: dict[str, Any], *, stream: bool = False) -> dict[str, Any]:
     body = dict(payload)
+    stream = use_stream(stream)
     if stream:
         body["stream"] = True
+    sent = request_sent(body)
     r = _curl(
         "POST",
         f"{BASE_URL}/chat/completions",
@@ -330,6 +359,7 @@ def post_chat(payload: dict[str, Any], *, stream: bool = False) -> dict[str, Any
             "elapsed_ms": elapsed_ms,
             "error": r["error"],
             "stream": stream,
+            "request": sent,
             **EMPTY,
         }
     if status != 200:
@@ -339,6 +369,7 @@ def post_chat(payload: dict[str, Any], *, stream: bool = False) -> dict[str, Any
             "elapsed_ms": elapsed_ms,
             "error": r["error"],
             "stream": stream,
+            "request": sent,
             **EMPTY,
         }
     if stream:
@@ -378,6 +409,7 @@ def post_chat(payload: dict[str, Any], *, stream: bool = False) -> dict[str, Any
             "elapsed_ms": elapsed_ms,
             "error": None,
             "stream": True,
+            "request": sent,
             "content": "".join(content_parts),
             "reasoning": reason,
             "reasoning_content": reason,
@@ -398,6 +430,7 @@ def post_chat(payload: dict[str, Any], *, stream: bool = False) -> dict[str, Any
             "elapsed_ms": elapsed_ms,
             "error": f"JSONDecodeError: {e}",
             "stream": False,
+            "request": sent,
             **EMPTY,
         }
     try:
@@ -410,6 +443,7 @@ def post_chat(payload: dict[str, Any], *, stream: bool = False) -> dict[str, Any
         "elapsed_ms": elapsed_ms,
         "error": None,
         "stream": False,
+        "request": sent,
         "content": msg.get("content"),
         "reasoning": msg.get("reasoning"),
         "reasoning_content": msg.get("reasoning_content"),
@@ -431,17 +465,48 @@ def reason_chars(r: dict[str, Any]) -> int:
     return len(r.get("reasoning") or r.get("reasoning_content") or "")
 
 
+def reasoning_tokens(r: dict[str, Any]) -> int | None:
+    det = ((r.get("usage") or {}).get("completion_tokens_details") or {})
+    t = det.get("reasoning_tokens")
+    return int(t) if isinstance(t, (int, float)) else None
+
+
+def similar_thinking(shot: dict[str, Any], baseline: dict[str, Any]) -> dict[str, Any]:
+    """同一題思考量是否像基準（優先 reasoning_tokens，否則字數）。"""
+    out: dict[str, Any] = {
+        "metric": None,
+        "this": None,
+        "other": None,
+        "similar": None,
+    }
+    if baseline.get("http_status") != 200 or shot.get("http_status") != 200:
+        return out
+    ta, tb = reasoning_tokens(shot), reasoning_tokens(baseline)
+    if ta is not None and tb is not None:
+        bigger = max(ta, tb, 1)
+        out.update(
+            metric="reasoning_tokens",
+            this=ta,
+            other=tb,
+            similar=abs(ta - tb) <= max(8, bigger * 30 // 100),
+        )
+        return out
+    a, b = reason_chars(shot), reason_chars(baseline)
+    bigger = max(a, b, 1)
+    out.update(
+        metric="reasoning_chars",
+        this=a,
+        other=b,
+        similar=abs(a - b) <= max(40, bigger * 30 // 100),
+    )
+    return out
+
+
 def looks_like_baseline(shot: dict[str, Any], baseline: dict[str, Any]) -> bool:
     """200 + same thinking on/off and similar length → value likely ignored or is the default."""
-    if baseline.get("http_status") != 200 or shot.get("http_status") != 200:
-        return False
     if has_reasoning(shot) != has_reasoning(baseline):
         return False
-    a, b = reason_chars(shot), reason_chars(baseline)
-    if a == b:
-        return True
-    bigger = max(a, b, 1)
-    return abs(a - b) <= max(40, bigger * 30 // 100)
+    return bool(similar_thinking(shot, baseline).get("similar"))
 
 
 def row(
@@ -452,6 +517,7 @@ def row(
     result: dict[str, Any] | None,
     verdict: str,
     notes: str = "",
+    compare: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     r = result or {}
     return {
@@ -477,6 +543,8 @@ def row(
         ),
         "error_preview": r.get("error"),
         "notes": notes,
+        "request": r.get("request") if result else None,
+        "compare": compare,
     }
 
 
@@ -516,24 +584,57 @@ def step_a(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
         row(step="A", case_id="A.enable", desc="預設一槍（看 reasoning）", result=r_on, verdict=v, notes=n)
     )
 
+    effort_shots: dict[str, dict[str, Any]] = {}
     for val in EFFORT:
-        r_e = post_chat(payload(model, msgs, {"reasoning_effort": val}))
-        chars = len(r_e.get("reasoning") or r_e.get("reasoning_content") or "")
+        effort_shots[val] = post_chat(payload(model, msgs, {"reasoning_effort": val}))
+    max_shot = effort_shots.get("max") if "max" in effort_shots else None
+    max_is_default = bool(
+        max_shot
+        and max_shot.get("http_status") == 200
+        and looks_like_baseline(max_shot, r_on)
+    )
+
+    for val, r_e in effort_shots.items():
+        chars = reason_chars(r_e)
         tok = (r_e.get("usage") or {}).get("completion_tokens")
+        vs_def = similar_thinking(r_e, r_on)
+        vs_max = similar_thinking(r_e, max_shot) if max_shot and val != "max" else None
+        like_default = bool(vs_def.get("similar"))
+        like_max = bool(vs_max and vs_max.get("similar"))
+        compare = {
+            "vs_default": "like_default" if like_default else "not_default",
+            "vs_max": (
+                None
+                if vs_max is None
+                else ("like_max" if like_max else "not_like_max")
+            ),
+            "metric": vs_def.get("metric"),
+            "this": vs_def.get("this"),
+            "default": vs_def.get("other"),
+            "max": None if vs_max is None else vs_max.get("other"),
+            "intensity_testable": not ENABLE_THINKING,
+        }
         if r_e.get("http_status") != 200:
             v, n = "skip", f"reasoning_effort={val} 不接受"
+            compare["vs_default"] = "unknown"
         elif not has_reasoning(r_e):
             v, n = "noop", f"reason_chars={chars} tokens={tok}"
-        elif looks_like_baseline(r_e, r_on):
+            compare["vs_default"] = "not_default"
+        elif ENABLE_THINKING:
+            v, n = (
+                "pass",
+                "已強制 enable_thinking，effort 強度無法比；本槍只證明有送到且有 reasoning",
+            )
+        elif like_default or (max_is_default and like_max):
             v, n = (
                 "noop",
-                f"與預設無差，可能忽略此值或此檔就是預設；"
-                f"reason_chars={chars} tokens={tok} 預設={reason_chars(r_on)}字",
+                "與預設（或 max）無差，可能忽略此值或此檔就是預設",
             )
+            compare["vs_default"] = "like_default"
         else:
             v, n = (
                 "pass",
-                f"reason_chars={chars} tokens={tok}（異於預設 {reason_chars(r_on)}字）",
+                "異於預設；不能證明就是獨立檔位，只能證明不是預設",
             )
         out.append(
             row(
@@ -543,6 +644,7 @@ def step_a(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
                 result=r_e,
                 verdict=v,
                 notes=n,
+                compare=compare,
             )
         )
 
@@ -814,6 +916,33 @@ VERDICT_ZH = {
     "skip": "跳過",
 }
 
+# 寫進每份 results JSON，讀檔即可，不必另寫 RESULTS.md
+JSON_READ = {
+    "verdict": {
+        "pass": "OK：這題預期成立",
+        "fail": "FAIL：應成功卻失敗",
+        "noop": "NOOP：HTTP 2xx 但行為沒對上（常見：參數被接受但未生效）",
+        "skip": "SKIP：該檔 reasoning_effort 非 200",
+    },
+    "request": "實際 POST 出去的欄位（不含完整 messages）。有 reasoning_effort 只證明有送到閘道。",
+    "compare": {
+        "何時有": "僅 A.effort_* 槍",
+        "metric": "優先 usage.completion_tokens_details.reasoning_tokens，沒有才用字數",
+        "vs_default": {
+            "like_default": "思考量≈不帶參數；可能忽略此值，或此檔就是預設",
+            "not_default": "不是預設。不能證明就是官方獨立檔（例如不能證明 medium 真的是 medium）",
+            "unknown": "無法比（例如該槍 4xx）",
+        },
+        "vs_max": {
+            "like_max": "思考量≈本次 max 槍",
+            "not_like_max": "不像 max",
+            "null": "沒掃 max，或本槍就是 max",
+        },
+        "intensity_testable": "false＝本輪有 ENABLE_THINKING=true，不能用 vs_default 判斷 low/high 強弱（Gemma 常見）",
+    },
+    "official_vs_gateway": "PARAMS.md 是廠商契約。閘道 200／枚舉較寬不代表官方有該檔。",
+}
+
 
 def run() -> int:
     if not BASE_URL or not API_KEY:
@@ -852,6 +981,8 @@ def run() -> int:
     print(f"using {model}")
     print(f"reasoning_effort={','.join(effort_meta()) or '(none)'}")
     print(f"enable_thinking={'true' if ENABLE_THINKING else 'false'}")
+    stream_label = "true" if STREAM_STEPS is True else "false" if STREAM_STEPS is False else "default(D/F only)"
+    print(f"stream_steps={stream_label}")
 
     stamp = datetime.now(timezone.utc).astimezone().strftime("%Y%m%d_%H%M%S")
     tag = model.replace("/", "_")
@@ -864,8 +995,10 @@ def run() -> int:
             "profile": "generic",
             "effort": effort_meta(),
             "enable_thinking": ENABLE_THINKING,
+            "stream_steps": (True if STREAM_STEPS is True else False if STREAM_STEPS is False else "default"),
             "steps": list(STEPS),
             "started_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "read": JSON_READ,
         },
         "models": {},
     }
