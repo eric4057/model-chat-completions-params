@@ -2,7 +2,8 @@
 """Walk ARCHITECTURE.md steps A–F against OpenAI-compatible /v1.
 
 Required env: OPENAI_BASE_URL  OPENAI_API_KEY  MODEL
-Optional: REASONING_EFFORT=low,high,max  (comma list; unset = probe union)
+Optional: PROBE_MODE=probe|enforce  (預設 probe；enforce＝官方不允許就在本機 400)
+Optional: REASONING_EFFORT=low,high,max  (逗號分隔；空白＝依官方契約，不掃聯集)
 Optional: ENABLE_THINKING=true  (inject chat_template_kwargs.enable_thinking)
 Optional: STREAM_STEPS=true|false  (true=全部 stream；false=全關；不設=D/F 照常)
 """
@@ -26,6 +27,7 @@ PROBE_ENV = (
     "OPENAI_BASE_URL",
     "OPENAI_API_KEY",
     "MODEL",
+    "PROBE_MODE",
     "REASONING_EFFORT",
     "ENABLE_THINKING",
     "STREAM_STEPS",
@@ -33,6 +35,68 @@ PROBE_ENV = (
 TIMEOUT_S = 180
 MAX_TOKENS = 1024
 DEFAULT_EFFORT = ("low", "medium", "high", "max")
+
+# 官方契約。key 是閘道 model id 的小寫子串；細節與出處見 PARAMS.md。
+# effort 空 tuple + known=True → 該模型完全沒有 reasoning_effort（unsupported_parameter）。
+CONTRACTS: tuple[tuple[str, dict[str, Any]], ...] = (
+    (
+        "gemma-4",
+        {
+            "known": True,
+            "family": "Google Gemma 4",
+            "effort": ("low", "medium", "high", "none"),
+            "effort_default": None,
+            "can_disable_thinking": True,
+            "sampling_fixed": False,
+            "note": "官方 thinking 是開／關；這組值是 vLLM 注入 enable_thinking 用，不是官方強度檔",
+        },
+    ),
+    (
+        "nemotron-3-ultra",
+        {
+            "known": True,
+            "family": "NVIDIA Nemotron 3 Ultra",
+            "effort": ("none", "medium", "high"),
+            "effort_default": "high",
+            "can_disable_thinking": True,
+            "sampling_fixed": False,
+            "note": "另有 reasoning_budget（本腳本不打）",
+        },
+    ),
+    (
+        "kimi-k3",
+        {
+            "known": True,
+            "family": "Moonshot Kimi K3",
+            "effort": ("low", "high", "max"),
+            "effort_default": "max",
+            "can_disable_thinking": False,
+            "sampling_fixed": True,
+            "note": "thinking 永遠開；temperature/top_p/n/penalties 官方固定",
+        },
+    ),
+    (
+        "gpt-oss-120b",
+        {
+            "known": True,
+            "family": "OpenAI gpt-oss-120b",
+            "effort": ("low", "medium", "high"),
+            "effort_default": "medium",
+            "can_disable_thinking": False,
+            "sampling_fixed": False,
+            "note": "永遠 reasoning；官方只有 low/medium/high",
+        },
+    ),
+)
+UNKNOWN_CONTRACT: dict[str, Any] = {
+    "known": False,
+    "family": None,
+    "effort": (),
+    "effort_default": None,
+    "can_disable_thinking": None,
+    "sampling_fixed": None,
+    "note": "契約未知：不在本機攔參數，只記閘道行為",
+}
 
 JSON_SCHEMA = {
     "type": "json_schema",
@@ -104,21 +168,92 @@ BASE_URL = os.environ.get("OPENAI_BASE_URL", "").rstrip("/")
 API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
 
-def parse_effort() -> tuple[tuple[str, ...], bool]:
+PROBE_MODE = os.environ.get("PROBE_MODE", "").strip().lower() or "probe"
+
+
+def resolve_contract(model_id: str) -> dict[str, Any]:
+    low = model_id.lower()
+    for key, contract in CONTRACTS:
+        if key in low:
+            return contract
+    return UNKNOWN_CONTRACT
+
+
+def openai_error(
+    message: str,
+    code: str,
+    *,
+    param: str,
+    allowed: list[str] | None = None,
+) -> dict[str, Any]:
+    """OpenAI Chat Completions 的 400 body 形狀。"""
+    err: dict[str, Any] = {
+        "message": message,
+        "type": "invalid_request_error",
+        "param": param,
+        "code": code,
+    }
+    if allowed:
+        err["allowed"] = allowed
+    return {"error": err}
+
+
+def contract_error(contract: dict[str, Any], value: str) -> dict[str, Any] | None:
+    """官方契約不允許此 reasoning_effort 就回 400 body；允許或契約未知回 None。"""
+    if not contract["known"]:
+        return None
+    official = tuple(contract["effort"])
+    if not official:
+        return openai_error(
+            "Unsupported parameter: 'reasoning_effort' is not supported with this model.",
+            "unsupported_parameter",
+            param="reasoning_effort",
+        )
+    if value in official:
+        return None
+    return openai_error(
+        f"Invalid value: 'reasoning_effort' does not support '{value}'. "
+        f"Supported values are: {', '.join(official)}.",
+        "invalid_value",
+        param="reasoning_effort",
+        allowed=list(official),
+    )
+
+
+def requested_effort() -> list[str] | None:
+    """None＝REASONING_EFFORT 空白（走契約預設）。"""
     raw = os.environ.get("REASONING_EFFORT", "").strip()
     if not raw:
-        return DEFAULT_EFFORT, True
-    levels: list[str] = []
-    sweep_none = False
-    for part in raw.split(","):
-        val = part.strip()
-        if not val:
-            continue
-        if val.lower() == "none":
-            sweep_none = True
+        return None
+    return [p.strip() for p in raw.split(",") if p.strip()]
+
+
+def plan_effort(
+    contract: dict[str, Any],
+) -> tuple[tuple[str, ...], bool, list[dict[str, Any]]]:
+    """回傳 (要送出的檔位, 是否打 none, 本機依契約攔下的項)。
+
+    空白 REASONING_EFFORT：enforce＝不送該欄（走官方預設）；probe＝只掃官方枚舉。
+    契約未知才退回 DEFAULT_EFFORT 聯集。
+    """
+    asked = requested_effort()
+    official = tuple(contract["effort"])
+
+    if asked is None:
+        if PROBE_MODE == "enforce":
+            return (), False, []
+        vals = official if contract["known"] else DEFAULT_EFFORT + ("none",)
+        return tuple(v for v in vals if v != "none"), "none" in vals, []
+
+    send: list[str] = []
+    blocked: list[dict[str, Any]] = []
+    for val in asked:
+        err = contract_error(contract, val)
+        if err and PROBE_MODE == "enforce":
+            blocked.append({"value": val, "error": err})
         else:
-            levels.append(val)
-    return tuple(levels), sweep_none
+            send.append(val)
+    return tuple(v for v in send if v != "none"), "none" in send, blocked
 
 
 def effort_meta() -> list[str]:
@@ -128,7 +263,11 @@ def effort_meta() -> list[str]:
     return out
 
 
-EFFORT, SWEEP_NONE = parse_effort()
+# 由 run() 依實際 model id 的契約填入。
+CONTRACT: dict[str, Any] = UNKNOWN_CONTRACT
+EFFORT: tuple[str, ...] = ()
+SWEEP_NONE = False
+EFFORT_BLOCKED: list[dict[str, Any]] = []
 ENABLE_THINKING = os.environ.get("ENABLE_THINKING", "").strip().lower() in (
     "1",
     "true",
@@ -160,9 +299,9 @@ def _preview(text: Any, n: int = 160) -> str:
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
-def _json_ok(content: str | None) -> bool:
+def _loads_json_content(content: str | None) -> Any | None:
     if not content:
-        return False
+        return None
     text = content.strip()
     if text.startswith("```"):
         lines = text.splitlines()
@@ -172,10 +311,85 @@ def _json_ok(content: str | None) -> bool:
             lines = lines[:-1]
         text = "\n".join(lines).strip()
     try:
-        json.loads(text)
-        return True
+        return json.loads(text)
     except Exception:
+        return None
+
+
+def _json_ok(content: str | None) -> bool:
+    return _loads_json_content(content) is not None
+
+
+def _probe_schema_ok(content: str | None) -> bool:
+    """B.json_schema / F.schema_reasoning：必須是 {ok: bool, n: int}，不可多欄。"""
+    obj = _loads_json_content(content)
+    if not isinstance(obj, dict) or set(obj.keys()) != {"ok", "n"}:
         return False
+    n = obj.get("n")
+    return isinstance(obj.get("ok"), bool) and isinstance(n, int) and not isinstance(n, bool)
+
+
+def verdict_expect_reject(status: int | None) -> tuple[str, str]:
+    """非法參數應 4xx。5xx 是伺服器錯，不算驗證通過。"""
+    if status is None:
+        return "fail", "無 HTTP 狀態（timeout／curl）"
+    if 400 <= status <= 499:
+        return "pass", f"HTTP {status} 客戶端拒絕"
+    if status >= 500:
+        return "fail", f"HTTP {status} 是伺服器錯誤，不是正確拒絕"
+    return "noop", f"HTTP {status} 未拒絕非法值"
+
+
+def verdict_non_200(status: int | None, what: str) -> tuple[str, str]:
+    if status is None:
+        return "fail", f"{what}：無 HTTP 狀態（timeout／curl）"
+    if 400 <= status <= 499:
+        return "skip", f"{what} 不接受（HTTP {status}）"
+    return "fail", f"{what} HTTP {status}"
+
+
+def local_reject(body: dict[str, Any], sent: dict[str, Any]) -> dict[str, Any]:
+    """enforce：依官方契約在本機回 400，不送閘道。"""
+    return {
+        "ok": False,
+        "http_status": 400,
+        "elapsed_ms": 0,
+        "error": json.dumps(body, ensure_ascii=False),
+        "stream": False,
+        "request": sent,
+        "local_reject": True,
+        **EMPTY,
+    }
+
+
+def _merge_tool_delta(buckets: dict[int, dict[str, Any]], deltas: Any) -> None:
+    if not isinstance(deltas, list):
+        return
+    for item in deltas:
+        if not isinstance(item, dict):
+            continue
+        idx = item.get("index", 0)
+        if not isinstance(idx, int):
+            idx = 0
+        slot = buckets.setdefault(
+            idx,
+            {
+                "id": None,
+                "type": "function",
+                "function": {"name": "", "arguments": ""},
+            },
+        )
+        if item.get("id"):
+            slot["id"] = item["id"]
+        if item.get("type"):
+            slot["type"] = item["type"]
+        fn = item.get("function") or {}
+        if not isinstance(fn, dict):
+            continue
+        if fn.get("name"):
+            slot["function"]["name"] += fn["name"]
+        if fn.get("arguments"):
+            slot["function"]["arguments"] += fn["arguments"]
 
 
 def load_profile() -> dict[str, Any]:
@@ -344,6 +558,8 @@ def post_chat(payload: dict[str, Any], *, stream: bool = False) -> dict[str, Any
     stream = use_stream(stream)
     if stream:
         body["stream"] = True
+        # 串流下不要 usage 就不會有 usage chunk，reasoning_tokens 會整輪拿不到
+        body["stream_options"] = {"include_usage": True}
     sent = request_sent(body)
     r = _curl(
         "POST",
@@ -375,9 +591,12 @@ def post_chat(payload: dict[str, Any], *, stream: bool = False) -> dict[str, Any
     if stream:
         reasoning_parts: list[str] = []
         content_parts: list[str] = []
+        tool_buckets: dict[int, dict[str, Any]] = {}
         saw_done = False
         saw_usage = False
         saw_tool_delta = False
+        finish_reason = None
+        usage = None
         for line in raw.splitlines():
             if not line.startswith("data:"):
                 continue
@@ -393,7 +612,11 @@ def post_chat(payload: dict[str, Any], *, stream: bool = False) -> dict[str, Any
                 continue
             if obj.get("usage"):
                 saw_usage = True
-            delta = ((obj.get("choices") or [{}])[0].get("delta") or {})
+                usage = obj["usage"]
+            choice = (obj.get("choices") or [{}])[0]
+            if choice.get("finish_reason"):
+                finish_reason = choice["finish_reason"]
+            delta = choice.get("delta") or {}
             if delta.get("reasoning_content"):
                 reasoning_parts.append(delta["reasoning_content"])
             if delta.get("reasoning"):
@@ -402,7 +625,9 @@ def post_chat(payload: dict[str, Any], *, stream: bool = False) -> dict[str, Any
                 content_parts.append(delta["content"])
             if delta.get("tool_calls"):
                 saw_tool_delta = True
+                _merge_tool_delta(tool_buckets, delta["tool_calls"])
         reason = "".join(reasoning_parts) or None
+        tool_calls = [tool_buckets[i] for i in sorted(tool_buckets)] or None
         return {
             "ok": True,
             "http_status": status,
@@ -413,10 +638,10 @@ def post_chat(payload: dict[str, Any], *, stream: bool = False) -> dict[str, Any
             "content": "".join(content_parts),
             "reasoning": reason,
             "reasoning_content": reason,
-            "tool_calls": None,
+            "tool_calls": tool_calls,
             "message_keys": [],
-            "finish_reason": None,
-            "usage": None,
+            "finish_reason": finish_reason,
+            "usage": usage,
             "saw_done": saw_done,
             "saw_usage": saw_usage,
             "saw_tool_delta": saw_tool_delta,
@@ -472,7 +697,7 @@ def reasoning_tokens(r: dict[str, Any]) -> int | None:
 
 
 def similar_thinking(shot: dict[str, Any], baseline: dict[str, Any]) -> dict[str, Any]:
-    """同一題思考量是否像基準（優先 reasoning_tokens，否則字數）。"""
+    """同一題思考量是否像基準（兩邊都有 reasoning_tokens 才比 token；否則字數）。"""
     out: dict[str, Any] = {
         "metric": None,
         "this": None,
@@ -480,6 +705,9 @@ def similar_thinking(shot: dict[str, Any], baseline: dict[str, Any]) -> dict[str
         "similar": None,
     }
     if baseline.get("http_status") != 200 or shot.get("http_status") != 200:
+        return out
+    if has_reasoning(shot) != has_reasoning(baseline):
+        out["similar"] = False
         return out
     ta, tb = reasoning_tokens(shot), reasoning_tokens(baseline)
     if ta is not None and tb is not None:
@@ -518,6 +746,7 @@ def row(
     verdict: str,
     notes: str = "",
     compare: dict[str, Any] | None = None,
+    contract: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     r = result or {}
     return {
@@ -544,7 +773,9 @@ def row(
         "error_preview": r.get("error"),
         "notes": notes,
         "request": r.get("request") if result else None,
+        "local_reject": bool(r.get("local_reject")),
         "compare": compare,
+        "contract": contract,
     }
 
 
@@ -584,6 +815,28 @@ def step_a(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
         row(step="A", case_id="A.enable", desc="預設一槍（看 reasoning）", result=r_on, verdict=v, notes=n)
     )
 
+    for item in EFFORT_BLOCKED:
+        err = item["error"]["error"]
+        r_b = local_reject(
+            item["error"], {"model": model, "reasoning_effort": item["value"]}
+        )
+        out.append(
+            row(
+                step="A",
+                case_id=f"A.effort_{item['value']}",
+                desc=f"reasoning_effort={item['value']}（官方不允許）",
+                result=r_b,
+                verdict="pass",
+                notes=f"enforce：本機回 400 {err['code']}，未送閘道",
+                contract={
+                    "family": CONTRACT["family"],
+                    "official_effort": list(CONTRACT["effort"]) or None,
+                    "in_official": False,
+                    "decision": "rejected_locally",
+                },
+            )
+        )
+
     effort_shots: dict[str, dict[str, Any]] = {}
     for val in EFFORT:
         effort_shots[val] = post_chat(payload(model, msgs, {"reasoning_effort": val}))
@@ -615,11 +868,11 @@ def step_a(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
             "intensity_testable": not ENABLE_THINKING,
         }
         if r_e.get("http_status") != 200:
-            v, n = "skip", f"reasoning_effort={val} 不接受"
+            v, n = verdict_non_200(r_e.get("http_status"), f"reasoning_effort={val}")
             compare["vs_default"] = "unknown"
         elif not has_reasoning(r_e):
-            v, n = "noop", f"reason_chars={chars} tokens={tok}"
-            compare["vs_default"] = "not_default"
+            v, n = "noop", f"完全沒有 reasoning，無法比強度（reason_chars={chars} tokens={tok}）"
+            compare["vs_default"] = "unknown"
         elif ENABLE_THINKING:
             v, n = (
                 "pass",
@@ -636,6 +889,15 @@ def step_a(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
                 "pass",
                 "異於預設；不能證明就是獨立檔位，只能證明不是預設",
             )
+        in_official = val in tuple(CONTRACT["effort"]) if CONTRACT["known"] else None
+        contract_note: dict[str, Any] = {
+            "family": CONTRACT["family"],
+            "official_effort": list(CONTRACT["effort"]) or None,
+            "in_official": in_official,
+        }
+        if in_official is False and r_e.get("http_status") == 200:
+            contract_note["finding"] = "gateway_wider_than_official"
+            n = (n + "；" if n else "") + "官方沒有此值，閘道仍 200（閘道比官方寬）"
         out.append(
             row(
                 step="A",
@@ -645,11 +907,22 @@ def step_a(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
                 verdict=v,
                 notes=n,
                 compare=compare,
+                contract=contract_note,
             )
         )
 
-    r_bad = post_chat(payload(model, msgs, {"reasoning_effort": "not-a-level"}))
-    v = "pass" if (r_bad.get("http_status") or 0) >= 400 else "noop"
+    if PROBE_MODE == "enforce":
+        body = openai_error(
+            "Invalid value: 'reasoning_effort' does not support 'not-a-level'.",
+            "invalid_value",
+            param="reasoning_effort",
+            allowed=list(CONTRACT["effort"]) or None,
+        )
+        r_bad = local_reject(body, {"model": model, "reasoning_effort": "not-a-level"})
+        v, n = "pass", "enforce：本機回 400 invalid_value，未送閘道"
+    else:
+        r_bad = post_chat(payload(model, msgs, {"reasoning_effort": "not-a-level"}))
+        v, n = verdict_expect_reject(r_bad.get("http_status"))
     out.append(
         row(
             step="A",
@@ -657,16 +930,20 @@ def step_a(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
             desc="reasoning_effort=not-a-level 應拒",
             result=r_bad,
             verdict=v,
-            notes="" if v == "pass" else "非官方枚舉卻 200",
+            notes=n,
         )
     )
 
     if SWEEP_NONE:
         r_n = post_chat(payload(model, msgs, {"reasoning_effort": "none"}))
         if r_n.get("http_status") != 200:
-            v, n = "skip", "reasoning_effort=none 不接受"
+            v, n = verdict_non_200(r_n.get("http_status"), "reasoning_effort=none")
         elif has_reasoning(r_n):
             v, n = "noop", "none 仍有 reasoning"
+        elif CONTRACT["can_disable_thinking"] is False:
+            v, n = "fail", "契約不符：官方不允許關 thinking，閘道卻關掉了"
+        elif not has_reasoning(r_on):
+            v, n = "noop", "預設槍本來就沒有 reasoning，證明不了 none 有作用"
         else:
             v, n = "pass", ""
         out.append(
@@ -677,6 +954,15 @@ def step_a(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
                 result=r_n,
                 verdict=v,
                 notes=n,
+                contract={
+                    "family": CONTRACT["family"],
+                    "can_disable_thinking": CONTRACT["can_disable_thinking"],
+                    "in_official": (
+                        "none" in tuple(CONTRACT["effort"])
+                        if CONTRACT["known"]
+                        else None
+                    ),
+                },
             )
         )
 
@@ -730,14 +1016,17 @@ def step_b(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
     r = post_chat(payload(model, q, {"response_format": JSON_SCHEMA}))
     v = (
         "pass"
-        if r.get("http_status") == 200 and _json_ok(r.get("content"))
+        if r.get("http_status") == 200 and _probe_schema_ok(r.get("content"))
         else ("fail" if r.get("http_status") != 200 else "noop")
     )
-    out.append(row(step="B", case_id="B.json_schema", desc="json_schema strict", result=r, verdict=v))
-    r = post_chat(payload(model, q, {"response_format": "json"}))
-    v = "pass" if (r.get("http_status") or 0) >= 400 else "noop"
+    n = "" if v == "pass" else ("content 不是 schema 的 {ok, n}" if r.get("http_status") == 200 else "")
     out.append(
-        row(step="B", case_id="B.string_json", desc="非標準字串 json 應拒", result=r, verdict=v)
+        row(step="B", case_id="B.json_schema", desc="json_schema strict", result=r, verdict=v, notes=n)
+    )
+    r = post_chat(payload(model, q, {"response_format": "json"}))
+    v, n = verdict_expect_reject(r.get("http_status"))
+    out.append(
+        row(step="B", case_id="B.string_json", desc="非標準字串 json 應拒", result=r, verdict=v, notes=n)
     )
     return out
 
@@ -823,14 +1112,19 @@ def step_d(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
         ),
         stream=True,
     )
-    n = "" if r3.get("saw_tool_delta") else "未看到 tool_calls delta（soft）"
+    if r3.get("http_status") != 200:
+        v, n = "fail", "stream + required tools 應 200"
+    elif r3.get("saw_tool_delta") or r3.get("tool_calls"):
+        v, n = "pass", ""
+    else:
+        v, n = "noop", "required 但沒有 tool_calls delta"
     out.append(
         row(
             step="D",
             case_id="D.tool_delta",
             desc="stream + tools",
             result=r3,
-            verdict="pass" if r3.get("http_status") == 200 else "fail",
+            verdict=v,
             notes=n,
         )
     )
@@ -838,15 +1132,55 @@ def step_d(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def step_e(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
+    fixed = CONTRACT["sampling_fixed"]
+    contract_note: dict[str, Any] = {
+        "family": CONTRACT["family"],
+        "sampling_fixed": fixed,
+    }
+    if fixed and PROBE_MODE == "enforce":
+        body = openai_error(
+            "Invalid value: 'temperature' is fixed for this model and cannot be changed.",
+            "invalid_value",
+            param="temperature",
+        )
+        r = local_reject(body, {"model": model, "temperature": 0.2})
+        v, n = "pass", "enforce：官方固定 sampling，本機回 400 invalid_value，未送閘道"
+        contract_note["decision"] = "rejected_locally"
+        return [
+            row(
+                step="E",
+                case_id="E.temperature",
+                desc="temperature=0.2",
+                result=r,
+                verdict=v,
+                notes=n,
+                contract=contract_note,
+            )
+        ]
+
     r = post_chat(payload(model, user(profile["prompt"]), {"temperature": 0.2}))
+    status = r.get("http_status")
+    if status == 200 and fixed:
+        v, n = "fail", "契約不符：官方固定 sampling 應拒，閘道卻回 200"
+        contract_note["finding"] = "gateway_wider_than_official"
+    elif status == 200:
+        v, n = (
+            "noop",
+            "閘道接受 temperature=0.2；未比對輸出，不能證明 sampling 生效",
+        )
+    elif fixed and status is not None and 400 <= status <= 499:
+        v, n = "pass", f"HTTP {status}：與官方一致（固定 sampling 應拒）"
+    else:
+        v, n = verdict_non_200(status, "temperature=0.2")
     return [
         row(
             step="E",
             case_id="E.temperature",
             desc="temperature=0.2",
             result=r,
-            verdict="pass" if r.get("http_status") == 200 else "fail",
-            notes="腳本只記閘道是否接受；官方若固定勿改，對照 PARAMS.md",
+            verdict=v,
+            notes=n,
+            contract=contract_note,
         )
     ]
 
@@ -858,9 +1192,12 @@ def step_f(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
     )
     v = (
         "pass"
-        if r.get("http_status") == 200 and _json_ok(r.get("content"))
+        if r.get("http_status") == 200 and _probe_schema_ok(r.get("content"))
         else ("fail" if r.get("http_status") != 200 else "noop")
     )
+    n = "只 parse content"
+    if v == "noop":
+        n = "只 parse content；不是 schema 的 {ok, n}"
     out.append(
         row(
             step="F",
@@ -868,7 +1205,7 @@ def step_f(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
             desc="schema + 預設請求",
             result=r,
             verdict=v,
-            notes="只 parse content",
+            notes=n,
         )
     )
     r = post_chat(payload(model, user(profile["prompt"])), stream=True)
@@ -888,6 +1225,11 @@ def step_f(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
         ),
         stream=True,
     )
+    n = (
+        ""
+        if r.get("tool_calls") or r.get("saw_tool_delta")
+        else "無 tool_calls（soft：auto 可以不叫）"
+    )
     out.append(
         row(
             step="F",
@@ -895,6 +1237,7 @@ def step_f(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
             desc="stream + tools",
             result=r,
             verdict="pass" if r.get("http_status") == 200 else "fail",
+            notes=n,
         )
     )
     return out
@@ -919,11 +1262,22 @@ VERDICT_ZH = {
 # 寫進每份 results JSON，讀檔即可，不必另寫 RESULTS.md
 JSON_READ = {
     "verdict": {
-        "pass": "OK：這題預期成立",
-        "fail": "FAIL：應成功卻失敗",
-        "noop": "NOOP：HTTP 2xx 但行為沒對上（常見：參數被接受但未生效）",
-        "skip": "SKIP：該檔 reasoning_effort 非 200",
+        "pass": "OK：這題預期成立（含 enforce 依契約在本機正確 400）",
+        "fail": "FAIL：應成功卻失敗；非法參數回 5xx；或契約不符（官方應拒、閘道卻 200）",
+        "noop": "NOOP：HTTP 2xx 但行為沒對上，或只證明閘道接受、無法證明生效",
+        "skip": "SKIP：該參數 4xx 不接受",
     },
+    "probe_mode": {
+        "probe": "探測閘道：只掃官方枚舉，另打一槍非法值驗證應 4xx",
+        "enforce": "當服務：官方不允許就在本機回 OpenAI 形狀 400，不送閘道",
+    },
+    "contract": {
+        "來源": "各家官方文件，寫在腳本 CONTRACTS；對照說明見 PARAMS.md",
+        "in_official": "false＝官方枚舉沒有此值",
+        "finding": "gateway_wider_than_official＝閘道比官方寬，不代表模型官方支援",
+        "decision": "rejected_locally＝enforce 模式本機 400，未送閘道",
+    },
+    "local_reject": "true＝本機依契約回 400，這筆沒有打閘道",
     "request": "實際 POST 出去的欄位（不含完整 messages）。有 reasoning_effort 只證明有送到閘道。",
     "compare": {
         "何時有": "僅 A.effort_* 槍",
@@ -931,7 +1285,7 @@ JSON_READ = {
         "vs_default": {
             "like_default": "思考量≈不帶參數；可能忽略此值，或此檔就是預設",
             "not_default": "不是預設。不能證明就是官方獨立檔（例如不能證明 medium 真的是 medium）",
-            "unknown": "無法比（例如該槍 4xx）",
+            "unknown": "無法比（該槍 4xx，或整槍完全沒有 reasoning）",
         },
         "vs_max": {
             "like_max": "思考量≈本次 max 槍",
@@ -945,11 +1299,16 @@ JSON_READ = {
 
 
 def run() -> int:
+    global CONTRACT, EFFORT, SWEEP_NONE, EFFORT_BLOCKED
+
     if not BASE_URL or not API_KEY:
         print(
             "請設環境變數 OPENAI_BASE_URL、OPENAI_API_KEY（export 或專案根目錄 .env）",
             file=sys.stderr,
         )
+        return 2
+    if PROBE_MODE not in ("probe", "enforce"):
+        print(f"PROBE_MODE 只能是 probe 或 enforce（收到 {PROBE_MODE}）", file=sys.stderr)
         return 2
     if not shutil.which("curl"):
         print("找不到 curl（請安裝後再跑）", file=sys.stderr)
@@ -979,7 +1338,14 @@ def run() -> int:
     if not model:
         return 2
     print(f"using {model}")
-    print(f"reasoning_effort={','.join(effort_meta()) or '(none)'}")
+    CONTRACT = resolve_contract(model)
+    EFFORT, SWEEP_NONE, EFFORT_BLOCKED = plan_effort(CONTRACT)
+    print(f"probe_mode={PROBE_MODE}")
+    print(f"contract={CONTRACT['family'] or '(未知：只記閘道行為)'}")
+    print(f"official_effort={','.join(CONTRACT['effort']) or '(無)'}")
+    print(f"reasoning_effort={','.join(effort_meta()) or '(不送此欄)'}")
+    if EFFORT_BLOCKED:
+        print(f"blocked_locally={','.join(b['value'] for b in EFFORT_BLOCKED)}")
     print(f"enable_thinking={'true' if ENABLE_THINKING else 'false'}")
     stream_label = "true" if STREAM_STEPS is True else "false" if STREAM_STEPS is False else "default(D/F only)"
     print(f"stream_steps={stream_label}")
@@ -993,7 +1359,18 @@ def run() -> int:
         "meta": {
             "base_url": BASE_URL,
             "profile": "generic",
+            "probe_mode": PROBE_MODE,
+            "contract": {
+                "family": CONTRACT["family"],
+                "known": CONTRACT["known"],
+                "official_effort": list(CONTRACT["effort"]) or None,
+                "effort_default": CONTRACT["effort_default"],
+                "can_disable_thinking": CONTRACT["can_disable_thinking"],
+                "sampling_fixed": CONTRACT["sampling_fixed"],
+                "note": CONTRACT["note"],
+            },
             "effort": effort_meta(),
+            "effort_blocked_locally": [b["value"] for b in EFFORT_BLOCKED],
             "enable_thinking": ENABLE_THINKING,
             "stream_steps": (True if STREAM_STEPS is True else False if STREAM_STEPS is False else "default"),
             "steps": list(STEPS),

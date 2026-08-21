@@ -42,9 +42,9 @@ unset MODEL OPENAI_BASE_URL OPENAI_API_KEY REASONING_EFFORT ENABLE_THINKING STRE
 | 終端 | 意思 |
 |------|------|
 | OK | 預期成立 |
-| NOOP | 200 但參數／欄位未生效（effort 常見：`compare.vs_default=like_default`） |
-| SKIP | 該參數閘道不接受（4xx） |
-| FAIL | 應成功卻失敗 |
+| NOOP | 200 但參數／欄位未生效，或只證明閘道接受（例如 `temperature`） |
+| SKIP | 該參數閘道 **4xx** 不接受 |
+| FAIL | 應成功卻失敗；非法參數回 **5xx** 也算 FAIL |
 
 結果 JSON 每筆有 `request`（實際 POST）。A 的 effort 槍另有 `compare.vs_default`：`like_default`＝像預設；`not_default`＝不是預設（**不是**「證實就是該檔」）。細節見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 
