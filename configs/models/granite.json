@@ -1,0 +1,21 @@
+{
+  "id": "granite",
+  "family": "IBM Granite 3.1",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "Granite 3.1 Instruct／Guardian。IBM 3.1 model card 無 reasoning_effort，只跑 baseline。",
+  "source": [
+    "https://huggingface.co/ibm-granite/granite-3.1-8b-instruct"
+  ],
+  "match": {
+    "id_prefix": [
+      "granite-"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

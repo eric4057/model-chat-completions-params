@@ -1,0 +1,19 @@
+{
+  "id": "ilinda",
+  "family": "NCHC iLinda",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "閘道自有系列（含 o1 別名）。官方特殊參數未公開，只跑 baseline。",
+  "source": [],
+  "match": {
+    "id_prefix": [
+      "ilinda"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

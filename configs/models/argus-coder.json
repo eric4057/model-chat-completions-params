@@ -1,0 +1,19 @@
+{
+  "id": "argus-coder",
+  "family": "NCHC Argus Coder",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "閘道自有 coding 系列（含 V1-Reasoning 別名）。官方特殊參數未公開，只跑 baseline。",
+  "source": [],
+  "match": {
+    "id_prefix": [
+      "argus-coder"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

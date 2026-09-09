@@ -1,0 +1,24 @@
+{
+  "id": "llama-3",
+  "family": "Meta Llama 3",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "Llama 3.1/3.3 Instruct。Meta 官方 reasoning_effort 是 Muse Spark，不是 Llama 3 Instruct，故不填該參數。不含 Llama-3.3-Nemotron-Super。",
+  "source": [
+    "https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct",
+    "https://huggingface.co/meta-llama/Llama-3.1-405B-Instruct"
+  ],
+  "match": {
+    "id_prefix": [
+      "llama-3.1",
+      "llama-3.3-70b",
+      "llama3-taide"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

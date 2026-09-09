@@ -1,0 +1,21 @@
+{
+  "id": "mistral-small",
+  "family": "Mistral Small",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "Mistral Small Instruct（含 CS 微調）。官方 reasoning 模型是 Magistral，不是 Small Instruct，只跑 baseline。",
+  "source": [
+    "https://docs.mistral.ai/getting-started/models/models_overview/"
+  ],
+  "match": {
+    "id_prefix": [
+      "mistral-small"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

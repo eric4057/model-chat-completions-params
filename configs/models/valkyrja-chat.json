@@ -1,0 +1,21 @@
+{
+  "id": "valkyrja-chat",
+  "family": "NCHC Valkyrja Chat",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "只涵蓋 chat／coding 別名。image／audio／embedding／video 不是 chat LLM，不進此 Profile。",
+  "source": [],
+  "match": {
+    "id_equals": [
+      "valkyrja-coding",
+      "valkyrja-high",
+      "valkyrja-instant"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

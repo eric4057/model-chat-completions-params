@@ -1,0 +1,23 @@
+{
+  "id": "gemma-3",
+  "family": "Google Gemma 3",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "Gemma 3 Instruct／TAIDE 微調。Google 官方 thinking 文件是 Gemma 4 的 enable_thinking，Gemma 3 不填該參數。",
+  "source": [
+    "https://ai.google.dev/gemma/docs/core",
+    "https://ai.google.dev/gemma/docs/capabilities/thinking"
+  ],
+  "match": {
+    "id_prefix": [
+      "gemma-3",
+      "google-gemma-3"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

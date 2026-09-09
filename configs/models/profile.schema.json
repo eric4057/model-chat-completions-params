@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local/model-chat-completions-params/profile.schema.json",
+  "title": "ModelProfile",
+  "description": "單一 model family 的官方參數契約。引擎只認 params[].kind，不加 family 專用 STEPS。",
+  "type": "object",
+  "required": ["id", "family", "known", "match", "params"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string" },
+    "family": { "type": "string" },
+    "known": { "type": "boolean" },
+    "transport": { "type": "string", "const": "openai_chat", "default": "openai_chat" },
+    "baseline": { "type": "boolean", "default": true },
+    "note": { "type": "string" },
+    "source": { "type": "array", "items": { "type": "string" } },
+    "match": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id_equals": { "type": "array", "items": { "type": "string" } },
+        "id_prefix": { "type": "array", "items": { "type": "string" } },
+        "id_regex": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "request_defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "length_param": {
+          "type": "string",
+          "enum": ["max_tokens", "max_completion_tokens"]
+        },
+        "max_output": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "params": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/param" }
+    },
+    "official_examples": {
+      "type": "array",
+      "description": "重打官網範例請求，比對文件寫死的回覆欄位（不是全文標準答案）",
+      "items": { "$ref": "#/$defs/official_example" }
+    }
+  },
+  "$defs": {
+    "param": {
+      "type": "object",
+      "required": ["name", "kind"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "請求欄位，可用點路徑，例如 chat_template_kwargs.enable_thinking"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["enum", "flag", "int_range", "locked", "forbidden", "echo"]
+        },
+        "values": { "type": "array" },
+        "default": true,
+        "reject": { "type": "array" },
+        "disable_values": { "type": "array" },
+        "can_disable": { "type": ["boolean", "null"] },
+        "effect": { "type": ["string", "null"] },
+        "true_effect": { "type": ["string", "null"] },
+        "false_effect": { "type": ["string", "null"] },
+        "invalid_example": true,
+        "locked_value": true,
+        "probe_value": true,
+        "probe_in_range": { "type": "array" },
+        "probe_out_of_range": { "type": "array" },
+        "note": { "type": "string" }
+      }
+    },
+    "official_example": {
+      "type": "object",
+      "required": ["id", "source", "prompt", "request", "expect"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "source": { "type": "string" },
+        "prompt": { "type": "string" },
+        "request": { "type": "object" },
+        "docs_quote": { "type": "string" },
+        "expect": {
+          "type": "object",
+          "required": ["message_fields"],
+          "additionalProperties": false,
+          "properties": {
+            "http": { "type": "integer" },
+            "message_fields": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1
+            },
+            "absent_fields": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "官方寫明不應出現的欄位，例如關 thinking 後不應有 reasoning_content"
+            }
+          }
+        }
+      }
+    }
+  }
+}

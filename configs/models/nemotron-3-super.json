@@ -1,0 +1,56 @@
+{
+  "id": "nemotron-3-super",
+  "family": "NVIDIA Nemotron 3 Super",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "NVIDIA NIM 一級欄位：reasoning_effort=none/low/high（預設 high；無 medium）。reasoning_budget=-1..32768。effort 由 NIM 注入 chat_template_kwargs，不另測 enable_thinking。",
+  "source": [
+    "https://docs.api.nvidia.com/nim/re/reference/nvidia-nemotron-3-super-120b-a12b-infer"
+  ],
+  "match": {
+    "id_prefix": [
+      "nvidia-nemotron-3-super",
+      "nemotron-3-super"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": [
+    {
+      "name": "reasoning_effort",
+      "kind": "enum",
+      "values": [
+        "none",
+        "low",
+        "high"
+      ],
+      "default": "high",
+      "disable_values": [
+        "none"
+      ],
+      "reject": [
+        "medium",
+        "max"
+      ],
+      "invalid_example": "not-a-level",
+      "effect": "reasoning_tokens_rank",
+      "can_disable": true
+    },
+    {
+      "name": "reasoning_budget",
+      "kind": "int_range",
+      "probe_in_range": [
+        1024,
+        -1
+      ],
+      "probe_out_of_range": [
+        999999
+      ],
+      "effect": "has_reasoning",
+      "note": "官方 -1..32768；-1 關閉預算強制結束"
+    }
+  ]
+}

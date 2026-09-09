@@ -1,0 +1,184 @@
+{
+  "endpoint": "https://inner-medusa.genai.nchc.org.tw/v1",
+  "fetched_at": "2026-09-02",
+  "note": "由 GET /models 分類。非 chat（embedding/ASR/TTS/image/audio）不建探測 Profile。",
+  "chat": {
+    "gemma-4": [
+      "gemma-4-26B-A4B-it",
+      "gemma-4-31B-it",
+      "gemma-4-31B-it-with-tool",
+      "gemma-4-E4B-it"
+    ],
+    "gemma-3": [
+      "gemma-3-12b-it",
+      "Gemma-3-12b-it-TAIDE-distilled-v1",
+      "gemma-3-12b_raft-v1.2.1",
+      "Gemma-3-TAIDE-12b-Chat",
+      "Gemma-3-TAIDE-12b-Chat-2602",
+      "Gemma-3-TAIDE-12b-Chat-2602-with-tool",
+      "Google-Gemma-3-27B"
+    ],
+    "kimi-k3": [
+      "Kimi-K3",
+      "Kimi-K3-high",
+      "Kimi-K3-low",
+      "Kimi-K3-max"
+    ],
+    "gpt-oss-120b": [
+      "gpt-oss-120b",
+      "gpt-oss-20b",
+      "gpt-oss-safeguard-120b",
+      "taide-gptoss20b-qaraft-multi-ep5-lr1e-6"
+    ],
+    "nemotron-3-ultra": [
+      "NVIDIA-Nemotron-3-Ultra-550B-A55B"
+    ],
+    "nemotron-3-super": [
+      "NVIDIA-Nemotron-3-Super-120B-A12B"
+    ],
+    "llama-nemotron-super": [
+      "Llama-3.3-Nemotron-Super-49B-v1"
+    ],
+    "llama-4-maverick": [
+      "Llama-4-Maverick-17B-128E-Instruct-FP8"
+    ],
+    "llama-3": [
+      "Llama-3.1-405B-Instruct-FP8",
+      "llama-3.1-8B-m1-raft-v1-ep5",
+      "llama-3.1-8B-m1-raft-v1.1.4-ep5",
+      "Llama-3.3-70B-Instruct",
+      "Llama-3.3-70B-Instruct-MI210",
+      "Llama3-TAIDE-LX-70B-Chat"
+    ],
+    "mistral-small": [
+      "Mistral-Small-24B-Instruct-2501",
+      "Mistral-Small-3.1-24B-Instruct-2503",
+      "Mistral-Small-3.2-24B-Instruct-2506",
+      "Mistral-Small-3.2-24B-Instruct-2506-CS-0625",
+      "Mistral-Small-3.2-24B-Instruct-2506-CS-3in1-0915",
+      "Mistral-Small-3.2-24B-Instruct-2506-CS-3in1-FAPM50-1124"
+    ],
+    "mistral-large-3": [
+      "Mistral-Large-3-675B-Instruct-2512",
+      "Mistral-Large-3-675B-Instruct-2512-tasa"
+    ],
+    "devstral": [
+      "Devstral-Small-2507"
+    ],
+    "minimax-m3": [
+      "MiniMax-M3"
+    ],
+    "minimax-m2": [
+      "MiniMax-M2.5-tasa",
+      "MiniMax-M2.7"
+    ],
+    "glm-5": [
+      "GLM-5.2"
+    ],
+    "phi-4-reasoning": [
+      "Phi-4-Reasoning-Plus"
+    ],
+    "phi-instruct": [
+      "Microsoft-Phi-4-multimodal-instruct",
+      "phi-3.5-mini-instruct_zhtw_ld1_hq3.1_b8.3-p3_st-task-1-2-3-v3_e4_ORPO_1103-1019_fix3",
+      "Phi-3.5-TAIDE-Instruct",
+      "phi-3.5-task-123-v3-task4-v4"
+    ],
+    "granite": [
+      "Granite-3.1-8B-Instruct",
+      "Granite-Guardian-3.1-8B"
+    ],
+    "foundation-sec": [
+      "Foundation-Sec-8B-Instruct"
+    ],
+    "argus-coder": [
+      "Argus-Coder-Neo",
+      "Argus-Coder-New",
+      "Argus-Coder-Pro",
+      "Argus-Coder-Std",
+      "Argus-Coder-V1",
+      "Argus-Coder-V1-Plus",
+      "Argus-Coder-V1-Reasoning",
+      "Argus-Coder-V1-Turbo"
+    ],
+    "ilinda": [
+      "iLinda",
+      "iLinda-o1",
+      "iLinda-o1-reference",
+      "iLinda-trinity"
+    ],
+    "mene-m3": [
+      "Mene-M3",
+      "Mene-M3-high",
+      "Mene-M3-low",
+      "Mene-M3-max"
+    ],
+    "valkyrja-chat": [
+      "valkyrja-coding",
+      "valkyrja-high",
+      "valkyrja-instant"
+    ],
+    "thanos": [
+      "Thanos3.5-397B-A17B",
+      "Thanos3.5-397B-A17B-tasa"
+    ],
+    "taide": [
+      "TAIDE-LX-70B-Chat",
+      "TAIDE/b.12.0.0",
+      "g-taide-od"
+    ],
+    "muse-glimmer": [
+      "Muse-Glimmer-30B"
+    ],
+    "rainbell": [
+      "Rainbell_v2"
+    ],
+    "voldemort": [
+      "Voldemort-T1"
+    ],
+    "sciexplore": [
+      "sciexplore-chatbot-v1"
+    ]
+  },
+  "non_chat": {
+    "embedding": [
+      "bge-m3",
+      "embeddinggemma-300m",
+      "jina-embeddings-v4-vllm-code",
+      "valkyrja-text-embedding"
+    ],
+    "reranker": [
+      "BGE-Reranker-V2-M3"
+    ],
+    "asr": [
+      "Breeze-ASR-26",
+      "faster-whisper-large-v2",
+      "NUTN-KWS-Faster-Whisper-Taiwanese-model-v0.5",
+      "Taiwan-Tongues-ASR-CE",
+      "truku-asr",
+      "whisper-Breeze-ASR-25",
+      "Whisper-Large-V3",
+      "Whisper-Large-V3-Turbo",
+      "whisper-TW-hanlo-552"
+    ],
+    "tts": [
+      "BreezyVoice",
+      "sarc-cosyvoice-taigi-0.5b",
+      "truku-female-tts",
+      "truku-male-tts",
+      "vibevoice-large"
+    ],
+    "image": [
+      "FLUX.2-klein-9B-edit",
+      "FLUX.2-klein-9B-gen",
+      "valkyrja-image-editing",
+      "valkyrja-image-generation"
+    ],
+    "audio_video": [
+      "valkyrja-audio",
+      "valkyrja-audio-understanding",
+      "valkyrja-image-understanding",
+      "valkyrja-video-understanding"
+    ]
+  }
+}

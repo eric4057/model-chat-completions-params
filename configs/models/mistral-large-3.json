@@ -1,0 +1,21 @@
+{
+  "id": "mistral-large-3",
+  "family": "Mistral Large 3",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "Mistral Large 3 Instruct（含 tasa）。官方 reasoning 模型是 Magistral，不是 Large Instruct，只跑 baseline。",
+  "source": [
+    "https://docs.mistral.ai/getting-started/models/models_overview/"
+  ],
+  "match": {
+    "id_prefix": [
+      "mistral-large-3"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

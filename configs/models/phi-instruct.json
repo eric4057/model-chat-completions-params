@@ -1,0 +1,24 @@
+{
+  "id": "phi-instruct",
+  "family": "Microsoft Phi Instruct",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "Phi-3.5 / Phi-4 multimodal Instruct 與 TAIDE 微調。不含 Phi-4-Reasoning-Plus。Instruct 系列官方無 reasoning_effort。",
+  "source": [
+    "https://huggingface.co/microsoft/Phi-3.5-mini-instruct",
+    "https://huggingface.co/microsoft/Phi-4-multimodal-instruct"
+  ],
+  "match": {
+    "id_prefix": [
+      "phi-3.5",
+      "microsoft-phi-4-multimodal",
+      "phi-4-multimodal"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

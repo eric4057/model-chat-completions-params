@@ -1,0 +1,21 @@
+{
+  "id": "foundation-sec",
+  "family": "Cisco Foundation-Sec",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "Cisco Foundation-Sec Instruct。官方 model card 無 reasoning_effort，只跑 baseline。",
+  "source": [
+    "https://huggingface.co/fdtn-ai/Foundation-Sec-8B-Instruct"
+  ],
+  "match": {
+    "id_prefix": [
+      "foundation-sec"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

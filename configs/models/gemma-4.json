@@ -1,0 +1,49 @@
+{
+  "id": "gemma-4",
+  "family": "Google Gemma 4",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "Google 官方 thinking 只有開／關（chat template enable_thinking）。沒有官方強度檔。Chat Completions 以 chat_template_kwargs.enable_thinking 送出。vLLM 的 reasoning_effort／include_reasoning 不是 Google 契約，不列入探測。",
+  "source": [
+    "https://ai.google.dev/gemma/docs/capabilities/thinking",
+    "https://ai.google.dev/gemma/docs/core/model_card_4",
+    "https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4"
+  ],
+  "match": {
+    "id_prefix": [
+      "gemma-4"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": [
+    {
+      "name": "chat_template_kwargs.enable_thinking",
+      "kind": "flag",
+      "default": false,
+      "true_effect": "has_reasoning",
+      "false_effect": "no_reasoning",
+      "note": "官方 apply_chat_template(enable_thinking=True/False)；獨立對照槍，不汙染 JSON/tools"
+    }
+  ],
+  "official_examples": [
+    {
+      "id": "enable-thinking-water-formula",
+      "source": "https://ai.google.dev/gemma/docs/capabilities/thinking",
+      "prompt": "What is the water formula?",
+      "request": {
+        "chat_template_kwargs": {
+          "enable_thinking": true
+        }
+      },
+      "docs_quote": "enable_thinking=True；parse_response 分 thinking 與 answer",
+      "expect": {
+        "http": 200,
+        "message_fields": ["content", "reasoning_content"]
+      }
+    }
+  ]
+}

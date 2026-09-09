@@ -1,0 +1,19 @@
+{
+  "id": "thanos",
+  "family": "NCHC Thanos 3.5",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "閘道自有 397B MoE（含 tasa）。官方特殊參數未公開，只跑 baseline。",
+  "source": [],
+  "match": {
+    "id_prefix": [
+      "thanos"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

@@ -1,0 +1,21 @@
+{
+  "id": "phi-4-reasoning",
+  "family": "Microsoft Phi-4 Reasoning",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "永遠走 CoT（Thought/Solution）。官方沒有 reasoning_effort 檔位，只跑 baseline。",
+  "source": [
+    "https://huggingface.co/microsoft/Phi-4-reasoning-plus"
+  ],
+  "match": {
+    "id_prefix": [
+      "phi-4-reasoning"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

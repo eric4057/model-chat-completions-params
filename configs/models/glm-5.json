@@ -1,0 +1,81 @@
+{
+  "id": "glm-5",
+  "family": "Zhipu GLM-5",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "對齊 GLM-5.2 官方：thinking.type 可 disabled。reasoning_effort 官方收 max/xhigh/high/medium/low/minimal/none（預設 max）。none/minimal 關思考；low/medium 映射 high；xhigh 映射 max。medium 是官方合法值，不應拒。",
+  "source": [
+    "https://docs.z.ai/guides/capabilities/thinking"
+  ],
+  "match": {
+    "id_prefix": [
+      "glm-5"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": [
+    {
+      "name": "thinking.type",
+      "kind": "enum",
+      "values": [
+        "enabled",
+        "disabled"
+      ],
+      "default": "enabled",
+      "disable_values": [
+        "disabled"
+      ],
+      "invalid_example": "not-a-level",
+      "effect": "has_reasoning",
+      "can_disable": true
+    },
+    {
+      "name": "reasoning_effort",
+      "kind": "enum",
+      "values": [
+        "max",
+        "xhigh",
+        "high",
+        "medium",
+        "low",
+        "minimal",
+        "none"
+      ],
+      "default": "max",
+      "disable_values": [
+        "none",
+        "minimal"
+      ],
+      "invalid_example": "not-a-level",
+      "effect": "reasoning_tokens_rank",
+      "can_disable": true,
+      "note": "5.2 官方枚舉；low/medium→high，xhigh→max。探測會送出官方值，不把 medium 當非法。"
+    },
+    {
+      "name": "assistant_echo",
+      "kind": "echo",
+      "effect": "http_ok"
+    }
+  ],
+  "official_examples": [
+    {
+      "id": "thinking-enabled",
+      "source": "https://docs.z.ai/guides/capabilities/thinking",
+      "prompt": "Explain in detail the basic principles of quantum computing and analyze its potential impact in the field of cryptography",
+      "request": {
+        "thinking": {
+          "type": "enabled"
+        }
+      },
+      "docs_quote": "message.content 與 message.reasoning_content",
+      "expect": {
+        "http": 200,
+        "message_fields": ["content", "reasoning_content"]
+      }
+    }
+  ]
+}

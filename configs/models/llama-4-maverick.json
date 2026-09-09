@@ -1,0 +1,21 @@
+{
+  "id": "llama-4-maverick",
+  "family": "Meta Llama 4 Maverick",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "Llama 4 Maverick Instruct／多模態。Meta 官方 reasoning_effort 屬 Muse Spark，不是 Maverick，只跑 baseline。",
+  "source": [
+    "https://huggingface.co/meta-llama/Llama-4-Maverick-17B-128E-Instruct"
+  ],
+  "match": {
+    "id_prefix": [
+      "llama-4-maverick"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

@@ -1,0 +1,41 @@
+{
+  "id": "minimax-m2",
+  "family": "MiniMax M2.x",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "MiniMax 官方：M2.x thinking 不能關。thinking.type=disabled 仍會想，不是 4xx。合法檔為 enabled／adaptive。",
+  "source": [
+    "https://platform.minimax.io/docs/api-reference/text-chat-openai"
+  ],
+  "match": {
+    "id_prefix": [
+      "minimax-m2"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_completion_tokens",
+    "max_output": 1024
+  },
+  "params": [
+    {
+      "name": "thinking.type",
+      "kind": "enum",
+      "values": [
+        "enabled",
+        "adaptive",
+        "disabled"
+      ],
+      "default": "enabled",
+      "invalid_example": "not-a-level",
+      "effect": "has_reasoning",
+      "can_disable": false,
+      "note": "disabled 官方仍開 thinking；不列入 disable_values，也不應拒"
+    },
+    {
+      "name": "assistant_echo",
+      "kind": "echo",
+      "effect": "http_ok"
+    }
+  ]
+}

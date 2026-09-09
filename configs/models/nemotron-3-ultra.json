@@ -1,0 +1,56 @@
+{
+  "id": "nemotron-3-ultra",
+  "family": "NVIDIA Nemotron 3 Ultra",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "NVIDIA NIM：reasoning_effort=none/medium/high（預設 high）。reasoning_budget=-1..32768（預設 16384）；-1 關閉上限，不是非法值。",
+  "source": [
+    "https://docs.api.nvidia.com/nim/re/reference/nvidia-nemotron-3-ultra-550b-a55b-infer"
+  ],
+  "match": {
+    "id_prefix": [
+      "nvidia-nemotron-3-ultra",
+      "nemotron-3-ultra"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": [
+    {
+      "name": "reasoning_effort",
+      "kind": "enum",
+      "values": [
+        "none",
+        "medium",
+        "high"
+      ],
+      "default": "high",
+      "disable_values": [
+        "none"
+      ],
+      "reject": [
+        "low",
+        "max"
+      ],
+      "invalid_example": "not-a-level",
+      "effect": "reasoning_tokens_rank",
+      "can_disable": true
+    },
+    {
+      "name": "reasoning_budget",
+      "kind": "int_range",
+      "probe_in_range": [
+        1024,
+        -1
+      ],
+      "probe_out_of_range": [
+        999999
+      ],
+      "effect": "has_reasoning",
+      "note": "官方 -1..32768；-1 關閉預算強制結束"
+    }
+  ]
+}

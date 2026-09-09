@@ -1,0 +1,21 @@
+{
+  "id": "devstral",
+  "family": "Mistral Devstral",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "Devstral 是 coding Instruct，官方沒有 reasoning_effort 檔位，只跑 baseline。",
+  "source": [
+    "https://docs.mistral.ai/getting-started/models/models_overview/"
+  ],
+  "match": {
+    "id_prefix": [
+      "devstral"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

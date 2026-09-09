@@ -1,0 +1,24 @@
+{
+  "id": "taide",
+  "family": "TAIDE",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "TAIDE 對話模型。不含 TAIDE 的 Gemma/Llama/Phi/gpt-oss 微調（那些走對應 family）。",
+  "source": [],
+  "match": {
+    "id_equals": [
+      "g-taide-od",
+      "taide-lx-70b-chat"
+    ],
+    "id_prefix": [
+      "taide-lx",
+      "taide/b."
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

@@ -1,0 +1,53 @@
+{
+  "id": "minimax-m3",
+  "family": "MiniMax M3",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "Chat Completions 用 thinking.type=disabled|adaptive|enabled。可關 thinking。長度欄建議 max_completion_tokens。",
+  "source": [
+    "https://platform.minimax.io/docs/api-reference/text-chat-openai"
+  ],
+  "match": {
+    "id_prefix": [
+      "minimax-m3"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_completion_tokens",
+    "max_output": 1024
+  },
+  "params": [
+    {
+      "name": "thinking.type",
+      "kind": "enum",
+      "values": [
+        "enabled",
+        "adaptive",
+        "disabled"
+      ],
+      "default": "adaptive",
+      "disable_values": [
+        "disabled"
+      ],
+      "invalid_example": "not-a-level",
+      "effect": "has_reasoning",
+      "can_disable": true,
+      "note": "省略時官方預設會想；disabled 關閉"
+    },
+    {
+      "name": "reasoning_split",
+      "kind": "flag",
+      "default": false,
+      "true_effect": "has_reasoning",
+      "false_effect": null,
+      "note": "只改回傳欄位，不開關 thinking"
+    },
+    {
+      "name": "assistant_echo",
+      "kind": "echo",
+      "effect": "http_ok",
+      "note": "多輪須回傳 reasoning_content / reasoning_details"
+    }
+  ]
+}

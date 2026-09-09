@@ -1,0 +1,19 @@
+{
+  "id": "mene-m3",
+  "family": "NCHC Mene-M3",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "閘道有 low/high/max 部署別名，類似 Kimi-K3。官方契約未核對，不複製 Kimi 枚舉，只跑 baseline。",
+  "source": [],
+  "match": {
+    "id_prefix": [
+      "mene-m3"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

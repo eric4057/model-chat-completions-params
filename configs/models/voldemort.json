@@ -1,0 +1,19 @@
+{
+  "id": "voldemort",
+  "family": "NCHC Voldemort",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "無核對到公開特殊 reasoning 契約；只跑 OpenAI-compatible baseline。",
+  "source": [],
+  "match": {
+    "id_prefix": [
+      "voldemort"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": []
+}

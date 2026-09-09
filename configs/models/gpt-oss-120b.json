@@ -1,0 +1,44 @@
+{
+  "id": "gpt-oss-120b",
+  "family": "OpenAI gpt-oss",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "OpenAI 官方三檔 low/medium/high（Harmony system：Reasoning: high；預設 medium）。永遠 reasoning，無 none。Chat Completions 頂層 reasoning_effort 對應這三檔。含 20b／120b／safeguard 與 TAIDE gpt-oss 微調。",
+  "source": [
+    "https://developers.openai.com/cookbook/articles/openai-harmony",
+    "https://github.com/openai/gpt-oss",
+    "https://cdn.openai.com/pdf/419b6906-9da6-406c-a19d-1bb078ac7637/oai_gpt-oss_model_card.pdf"
+  ],
+  "match": {
+    "id_prefix": [
+      "gpt-oss-"
+    ],
+    "id_regex": [
+      "gpt-?oss"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": [
+    {
+      "name": "reasoning_effort",
+      "kind": "enum",
+      "values": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "default": "medium",
+      "reject": [
+        "none",
+        "max"
+      ],
+      "invalid_example": "not-a-level",
+      "effect": "reasoning_tokens_rank",
+      "can_disable": false
+    }
+  ]
+}
