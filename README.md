@@ -13,7 +13,6 @@
 ├── configs/profiles/         full 考卷三句 prompt
 ├── probe/                    match / 出題 / 判定 / 對照表
 ├── scripts/probe_flowchart.py
-├── tests/
 └── results/                  本機 JSON + .md（不進版控）
 ```
 
@@ -171,7 +170,7 @@ PYTHONPATH=. python3 -m probe.report_table
 1. 在 `configs/models/` 新增 `<id>.json`（對照 `profile.schema.json` 與現有檔）。
 2. 填 `match`（`id_equals`／`id_prefix`／`id_regex`，不要寬鬆 substring）。
 3. 用 `params[].kind`：`enum`／`flag`／`int_range`／`locked`／`forbidden`／`echo`。沒有特殊參數就留空 `params`，`official` scope 會是空結果。
-4. 跑測試。不必改 STEPS。
+4. 不必改探測步驟（STEPS）。用 `MODEL` 對上閘道 id 後跑 `scripts/probe_flowchart.py` 即為實測。
 
 ## 判定
 
@@ -183,9 +182,3 @@ PYTHONPATH=. python3 -m probe.report_table
 | FAIL | 應成功卻失敗；非法參數 **5xx**；或官方應拒卻 200 |
 
 流程見 [FLOWCHART.md](./FLOWCHART.md)；逐步判定見 [ARCHITECTURE.md](./ARCHITECTURE.md)。腳本測的是 **LiteLLM 閘道整條鏈**，不是單看 vLLM 或廠商雲端 API。
-
-## 測試
-
-```bash
-PYTHONPATH=. python3 -m unittest discover -s tests -v
-```
