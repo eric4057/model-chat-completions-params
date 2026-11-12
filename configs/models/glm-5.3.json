@@ -1,0 +1,64 @@
+{
+  "id": "glm-5.3",
+  "family": "Zhipu GLM-5.3",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "GLM-5.3／5.3-FLASH 與 5.2 不同。thinking.type 只能 enabled，disabled 會報錯。reasoning_effort 只收 low／high／max（預設 max）。low 是輕量推理，思考仍然開著，不是對應 high，也不能關。",
+  "source": [
+    "https://docs.z.ai/guides/llm/glm-5.3",
+    "https://docs.z.ai/guides/capabilities/thinking"
+  ],
+  "match": {
+    "id_prefix": [
+      "glm-5.3"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "params": [
+    {
+      "name": "thinking.type",
+      "kind": "enum",
+      "values": [
+        "enabled"
+      ],
+      "default": "enabled",
+      "effect": "has_reasoning",
+      "can_disable": false,
+      "note": "只能 enabled"
+    },
+    {
+      "name": "reasoning_effort",
+      "kind": "enum",
+      "values": [
+        "low",
+        "high",
+        "max"
+      ],
+      "default": "max",
+      "effect": "has_reasoning",
+      "can_disable": false,
+      "note": "只收 low／high／max。low 仍會思考。"
+    }
+  ],
+  "official_examples": [
+    {
+      "id": "thinking-enabled",
+      "source": "https://docs.z.ai/guides/capabilities/thinking",
+      "prompt": "Explain in detail the basic principles of quantum computing and analyze its potential impact in the field of cryptography",
+      "request": {
+        "thinking": {
+          "type": "enabled"
+        }
+      },
+      "docs_quote": "message.content 與 message.reasoning_content",
+      "expect": {
+        "http": 200,
+        "message_fields": ["content", "reasoning_content"]
+      }
+    }
+  ]
+}

@@ -4,13 +4,16 @@
   "known": true,
   "transport": "openai_chat",
   "baseline": true,
-  "note": "對齊 GLM-5.2 官方：thinking.type 可 disabled。reasoning_effort 官方收 max/xhigh/high/medium/low/minimal/none（預設 max）。none/minimal 關思考；low/medium 映射 high；xhigh 映射 max。medium 是官方合法值，不應拒。",
+  "note": "只對 GLM-5.2，不含 GLM-5.3。thinking.type 可 disabled。reasoning_effort 官方收 max/xhigh/high/medium/low/minimal/none（預設 max）。none/minimal 關思考；low/medium 映射 high；xhigh 映射 max。inner 2026-10-05 實測：上述設定皆 HTTP 200，但 reasoning_content 為空，思考寫在 content。明細在 results/glm-5.2-reasoning_content_20261005.md。",
   "source": [
     "https://docs.z.ai/guides/capabilities/thinking"
   ],
   "match": {
+    "id_equals": [
+      "glm-5.2"
+    ],
     "id_prefix": [
-      "glm-5"
+      "glm-5.2"
     ]
   },
   "request_defaults": {

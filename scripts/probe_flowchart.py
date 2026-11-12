@@ -36,12 +36,18 @@ from probe.cases import (
     official_scope_cases,
 )
 from probe.extra import deep_merge
+from probe.faults import content_has_tool_call, extract_vllm_flags, finalize_verdict
+from probe.flow import build_flow, render_flow_md
+from probe.http_parse import parse_curl_stdout
 from probe.profile import ModelProfile, load_profiles, match_profile, unknown_profile
 from probe.report_table import render_markdown_table, comparison_rows, write_report_md
+from probe.response import EMPTY_FIELDS as EMPTY
+from probe.response import interpret_chat_response, response_document
 from probe.verdict import (
     has_reasoning,
     match_official_example,
     official_reply_spec,
+    reasoning_channel_verdict,
     refine_effect,
     verdict_expect_reject,
     verdict_http,
@@ -58,6 +64,8 @@ PROBE_ENV = (
     "ENABLE_THINKING",
     "STREAM_STEPS",
     "PROBE_SCOPE",
+    "VLLM_BASE_URL",
+    "LITELLM_REQUEST_DEBUG",
 )
 TIMEOUT_S = 180
 MODELS_DIR = ROOT / "configs" / "models"
@@ -170,6 +178,13 @@ STREAM_STEPS: bool | None = (
     else False if _STREAM_RAW in ("0", "false", "no", "off")
     else None
 )
+LITELLM_REQUEST_DEBUG = os.environ.get("LITELLM_REQUEST_DEBUG", "").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
+VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL", "").strip().rstrip("/")
 
 
 def use_stream(default: bool) -> bool:
@@ -231,36 +246,6 @@ def local_reject(body: dict[str, Any], sent: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _merge_tool_delta(buckets: dict[int, dict[str, Any]], deltas: Any) -> None:
-    if not isinstance(deltas, list):
-        return
-    for item in deltas:
-        if not isinstance(item, dict):
-            continue
-        idx = item.get("index", 0)
-        if not isinstance(idx, int):
-            idx = 0
-        slot = buckets.setdefault(
-            idx,
-            {
-                "id": None,
-                "type": "function",
-                "function": {"name": "", "arguments": ""},
-            },
-        )
-        if item.get("id"):
-            slot["id"] = item["id"]
-        if item.get("type"):
-            slot["type"] = item["type"]
-        fn = item.get("function") or {}
-        if not isinstance(fn, dict):
-            continue
-        if fn.get("name"):
-            slot["function"]["name"] += fn["name"]
-        if fn.get("arguments"):
-            slot["function"]["arguments"] += fn["arguments"]
-
-
 def load_profile() -> dict[str, Any]:
     return json.loads(
         (ROOT / "configs" / "profiles" / "generic.json").read_text(encoding="utf-8")
@@ -303,14 +288,17 @@ def _curl(
     *,
     data: bytes | None = None,
     stream: bool = False,
+    timeout_s: int = TIMEOUT_S,
 ) -> dict[str, Any]:
     cmd = [
         "curl",
         "-sS",
+        "-D",
+        "-",
         "-w",
         f"\n{_CURL_MARK}%{{http_code}}",
         "--max-time",
-        str(TIMEOUT_S),
+        str(timeout_s),
         "-X",
         method,
         "-H",
@@ -327,13 +315,15 @@ def _curl(
             cmd,
             input=data,
             capture_output=True,
-            timeout=TIMEOUT_S + 10,
+            timeout=timeout_s + 10,
         )
     except FileNotFoundError:
         return {
             "http_status": None,
             "elapsed_ms": int((time.perf_counter() - t0) * 1000),
             "raw": "",
+            "headers": {},
+            "curl_exit": None,
             "error": "找不到 curl",
         }
     except subprocess.TimeoutExpired:
@@ -341,21 +331,16 @@ def _curl(
             "http_status": None,
             "elapsed_ms": int((time.perf_counter() - t0) * 1000),
             "raw": "",
+            "headers": {},
+            "curl_exit": 28,
             "error": "curl timeout",
         }
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
     stdout = proc.stdout.decode("utf-8", errors="replace")
     stderr = proc.stderr.decode("utf-8", errors="replace").strip()
-    if _CURL_MARK in stdout:
-        raw, _, code = stdout.rpartition(_CURL_MARK)
-        try:
-            status: int | None = int(code.strip())
-        except ValueError:
-            status = None
-        if status == 0:
-            status = None
-    else:
-        raw, status = stdout, None
+    parsed = parse_curl_stdout(stdout)
+    status = parsed["http_status"]
+    raw = parsed["body"]
     err = None
     if status is None:
         err = stderr or f"curl exit {proc.returncode}"
@@ -365,12 +350,14 @@ def _curl(
         "http_status": status,
         "elapsed_ms": elapsed_ms,
         "raw": raw,
+        "headers": parsed["headers"],
+        "curl_exit": proc.returncode,
         "error": err,
     }
 
 
-def get_json(path: str) -> dict[str, Any]:
-    r = _curl("GET", f"{BASE_URL}{path}")
+def get_json_url(url: str, *, timeout_s: int = TIMEOUT_S) -> dict[str, Any]:
+    r = _curl("GET", url, timeout_s=timeout_s)
     if r["http_status"] == 200:
         try:
             body = json.loads(r["raw"])
@@ -398,18 +385,8 @@ def get_json(path: str) -> dict[str, Any]:
     }
 
 
-EMPTY = {
-    "content": None,
-    "reasoning": None,
-    "reasoning_content": None,
-    "tool_calls": None,
-    "message_keys": [],
-    "finish_reason": None,
-    "usage": None,
-    "saw_done": False,
-    "saw_usage": False,
-    "saw_tool_delta": False,
-}
+def get_json(path: str) -> dict[str, Any]:
+    return get_json_url(f"{BASE_URL}{path}")
 
 
 def request_sent(body: dict[str, Any]) -> dict[str, Any]:
@@ -441,119 +418,19 @@ def post_chat(
         data=json.dumps(body).encode("utf-8"),
         stream=stream,
     )
-    status, raw, elapsed_ms = r["http_status"], r["raw"], r["elapsed_ms"]
-    if status is None:
-        return {
-            "ok": False,
-            "http_status": None,
-            "elapsed_ms": elapsed_ms,
-            "error": r["error"],
-            "stream": stream,
-            "request": sent,
-            **EMPTY,
-        }
-    if status != 200:
-        return {
-            "ok": False,
-            "http_status": status,
-            "elapsed_ms": elapsed_ms,
-            "error": r["error"],
-            "stream": stream,
-            "request": sent,
-            **EMPTY,
-        }
-    if stream:
-        reasoning_parts: list[str] = []
-        content_parts: list[str] = []
-        tool_buckets: dict[int, dict[str, Any]] = {}
-        saw_done = False
-        saw_usage = False
-        saw_tool_delta = False
-        finish_reason = None
-        usage = None
-        for line in raw.splitlines():
-            if not line.startswith("data:"):
-                continue
-            chunk = line[5:].strip()
-            if chunk == "[DONE]":
-                saw_done = True
-                continue
-            if not chunk:
-                continue
-            try:
-                obj = json.loads(chunk)
-            except json.JSONDecodeError:
-                continue
-            if obj.get("usage"):
-                saw_usage = True
-                usage = obj["usage"]
-            choice = (obj.get("choices") or [{}])[0]
-            if choice.get("finish_reason"):
-                finish_reason = choice["finish_reason"]
-            delta = choice.get("delta") or {}
-            if delta.get("reasoning_content"):
-                reasoning_parts.append(delta["reasoning_content"])
-            if delta.get("reasoning"):
-                reasoning_parts.append(delta["reasoning"])
-            if delta.get("content"):
-                content_parts.append(delta["content"])
-            if delta.get("tool_calls"):
-                saw_tool_delta = True
-                _merge_tool_delta(tool_buckets, delta["tool_calls"])
-        reason = "".join(reasoning_parts) or None
-        tool_calls = [tool_buckets[i] for i in sorted(tool_buckets)] or None
-        return {
-            "ok": True,
-            "http_status": status,
-            "elapsed_ms": elapsed_ms,
-            "error": None,
-            "stream": True,
-            "request": sent,
-            "content": "".join(content_parts),
-            "reasoning": reason,
-            "reasoning_content": reason,
-            "tool_calls": tool_calls,
-            "message_keys": [],
-            "finish_reason": finish_reason,
-            "usage": usage,
-            "saw_done": saw_done,
-            "saw_usage": saw_usage,
-            "saw_tool_delta": saw_tool_delta,
-        }
-    try:
-        parsed = json.loads(raw) if raw else {}
-    except json.JSONDecodeError as e:
-        return {
-            "ok": False,
-            "http_status": status,
-            "elapsed_ms": elapsed_ms,
-            "error": f"JSONDecodeError: {e}",
-            "stream": False,
-            "request": sent,
-            **EMPTY,
-        }
-    try:
-        msg = parsed["choices"][0]["message"]
-    except Exception:
-        msg = {}
-    return {
-        "ok": True,
-        "http_status": status,
-        "elapsed_ms": elapsed_ms,
-        "error": None,
-        "stream": False,
-        "request": sent,
-        "content": msg.get("content"),
-        "reasoning": msg.get("reasoning"),
-        "reasoning_content": msg.get("reasoning_content"),
-        "tool_calls": msg.get("tool_calls"),
-        "message_keys": sorted(msg.keys()) if msg else [],
-        "finish_reason": (parsed.get("choices") or [{}])[0].get("finish_reason"),
-        "usage": parsed.get("usage"),
-        "saw_done": False,
-        "saw_usage": False,
-        "saw_tool_delta": False,
-    }
+    result = interpret_chat_response(
+        status=r["http_status"],
+        raw=r["raw"],
+        elapsed_ms=r["elapsed_ms"],
+        error=r["error"],
+        headers=r.get("headers") or {},
+        curl_exit=r.get("curl_exit"),
+        stream=stream,
+        sent=sent,
+    )
+    result["request_body"] = body
+    result["response_json"] = response_document(r["raw"])
+    return result
 
 
 def row(
@@ -569,6 +446,7 @@ def row(
     official: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     r = result or {}
+    verdict, notes = finalize_verdict(verdict, notes, r)
     return {
         "step": step,
         "case_id": case_id,
@@ -594,9 +472,14 @@ def row(
         "notes": notes,
         "request": r.get("request") if result else None,
         "local_reject": bool(r.get("local_reject")),
+        "response_headers": r.get("response_headers") if result else None,
+        "fault": r.get("fault") if result else None,
+        "reasoning_obs": r.get("reasoning_obs") if result else None,
         "compare": compare,
         "contract": contract,
         "official": official,
+        "request_body": r.get("request_body") if result else None,
+        "response_json": r.get("response_json") if result else None,
     }
 
 
@@ -607,8 +490,13 @@ def payload(model: str, messages: list[dict[str, Any]], extra: dict | None = Non
         "messages": messages,
         defaults.length_param: defaults.max_output,
     }
+    for sample in getattr(MODEL_PROFILE, "sampling", ()):
+        if sample.send and sample.default is not None:
+            p[sample.name] = sample.default
     if extra:
         p = deep_merge(p, extra)
+    if LITELLM_REQUEST_DEBUG:
+        p["litellm_request_debug"] = True
     return p
 
 
@@ -891,24 +779,33 @@ def step_c(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
 
     out: list[dict[str, Any]] = []
     r = post_chat(tools_payload("auto"))
-    n = "" if r.get("tool_calls") else "無 tool_calls（soft：模型可能選擇不呼叫）"
+    if r.get("http_status") != 200:
+        v, n = "fail", ""
+    elif r.get("tool_calls"):
+        v, n = "pass", ""
+    elif content_has_tool_call(r.get("content")):
+        v, n = "fail", "工具呼叫寫在 content，沒有 tool_calls"
+    else:
+        v, n = "pass", "無 tool_calls（soft：模型可能選擇不呼叫）"
     out.append(
         row(
             step="C",
             case_id="C.auto",
             desc="tool_choice=auto",
             result=r,
-            verdict="pass" if r.get("http_status") == 200 else "fail",
+            verdict=v,
             notes=n,
         )
     )
     r = post_chat(tools_payload("required"))
     if r.get("http_status") != 200:
         v, n = "fail", ""
-    elif not r.get("tool_calls"):
-        v, n = "noop", "required 無 tool_calls"
-    else:
+    elif r.get("tool_calls"):
         v, n = "pass", ""
+    elif content_has_tool_call(r.get("content")):
+        v, n = "fail", "工具呼叫寫在 content，沒有 tool_calls"
+    else:
+        v, n = "noop", "required 無 tool_calls"
     out.append(
         row(step="C", case_id="C.required", desc="tool_choice=required", result=r, verdict=v, notes=n)
     )
@@ -917,6 +814,8 @@ def step_c(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
         v, n = "fail", ""
     elif r.get("tool_calls"):
         v, n = "noop", "none 仍有 tool_calls"
+    elif content_has_tool_call(r.get("content")):
+        v, n = "fail", "工具呼叫寫在 content，沒有 tool_calls"
     else:
         v, n = "pass", ""
     out.append(row(step="C", case_id="C.none", desc="tool_choice=none", result=r, verdict=v, notes=n))
@@ -933,7 +832,10 @@ def step_d(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
     else:
         v, n = "pass", ""
     out.append(row(step="D", case_id="D.sse", desc="stream=true SSE", result=r, verdict=v, notes=n))
-    v = "pass" if has_reasoning(r) else "noop"
+    if r.get("http_status") != 200:
+        v, n = "fail", "stream 應 200"
+    else:
+        v, n = reasoning_channel_verdict(r)
     out.append(
         row(
             step="D",
@@ -941,7 +843,7 @@ def step_d(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
             desc="reasoning 獨立 delta",
             result=r,
             verdict=v,
-            notes="" if v == "pass" else "stream 沒有獨立 reasoning delta",
+            notes="" if v == "pass" else n,
         )
     )
     out.append(
@@ -968,6 +870,8 @@ def step_d(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
         v, n = "fail", "stream + required tools 應 200"
     elif r3.get("saw_tool_delta") or r3.get("tool_calls"):
         v, n = "pass", ""
+    elif content_has_tool_call(r3.get("content")):
+        v, n = "fail", "工具呼叫寫在 content，沒有 tool_calls"
     else:
         v, n = "noop", "required 但沒有 tool_calls delta"
     out.append(
@@ -1067,18 +971,21 @@ def step_f(model: str, profile: dict[str, Any]) -> list[dict[str, Any]]:
         ),
         stream=True,
     )
-    n = (
-        ""
-        if r.get("tool_calls") or r.get("saw_tool_delta")
-        else "無 tool_calls（soft：auto 可以不叫）"
-    )
+    if r.get("http_status") != 200:
+        v, n = "fail", ""
+    elif r.get("tool_calls") or r.get("saw_tool_delta"):
+        v, n = "pass", ""
+    elif content_has_tool_call(r.get("content")):
+        v, n = "fail", "工具呼叫寫在 content，沒有 tool_calls"
+    else:
+        v, n = "pass", "無 tool_calls（soft：auto 可以不叫）"
     out.append(
         row(
             step="F",
             case_id="F.stream_tools",
             desc="stream + tools",
             result=r,
-            verdict="pass" if r.get("http_status") == 200 else "fail",
+            verdict=v,
             notes=n,
         )
     )
@@ -1148,7 +1055,7 @@ JSON_READ = {
     "official": {
         "何時有": "official scope 的 effect 槍、full 的 A.official_*、以及 F.think_* 思考×串流組合",
         "matches_example": "true＝符合官方文件寫死的回覆欄位（有／無 content、reasoning_content）",
-        "proof": "response_shape＝只證明欄位；unexpected_field＝不該出現的欄卻出現了",
+        "proof": "response_shape＝只證明欄位；unexpected_field＝不該出現的欄卻出現了；content_leak＝思考寫在 content；unmapped_provider_field＝只在 provider_specific_fields；truncated＝finish_reason=length",
         "proof_layer": "docs_response_fields＝文件寫死那層，不是範例作文全文",
         "source": "官網 URL",
         "not_proven": "模型輸出全文（非決定性；多數文件是占位字）；也不是 reasoning_tokens 檔位排名",
@@ -1158,7 +1065,45 @@ JSON_READ = {
         "full": "A–F 通用考卷 + 契約槍（effect 可用思考量排名）",
     },
     "official_vs_gateway": "configs/models/*.json 的 source／official_examples 是廠商契約。閘道 200／枚舉較寬不代表官方有該檔。",
+    "fault": {
+        "何時有": "這槍不是正常完成，或 4xx／5xx 能分辨來源時",
+        "class": "transport_timeout／upstream_closed／auth／rate_limit／gateway_param／gateway_bug／vllm_engine／client_reject／server_error／stream_error／embedded_error／malformed_response",
+        "detail": "寫進 notes 的一句話。client_reject 的 4xx 若是官方應拒，verdict 仍是 pass",
+    },
+    "reasoning_obs": {
+        "kind": "field＝有 reasoning 欄；content_leak＝思考寫在 content；provider_only＝只在 provider_specific_fields.reasoning；truncated＝finish_reason=length 且看不到思考；absent＝沒有",
+    },
+    "response_headers": "只留 x-litellm-call-id、x-litellm-model-id、x-litellm-model-api-base、x-litellm-version、x-request-id",
+    "vllm": "有設 VLLM_BASE_URL 才會出現。flags 來自 GET /server_info，需要 vLLM 行程的 VLLM_SERVER_DEV_MODE=1。不存原始 body。",
+    "litellm_request_debug": "true＝請求多了這個欄位，LiteLLM 把轉發 curl 印在 Proxy 日誌，不會回到這份 JSON。",
+    "flow": "固定四段：對上模型 → vLLM 旗標 → 探測 → 歸類。conclusion 是這次能指名的部署問題；status=pass／fail／noop／empty。",
 }
+
+
+def collect_vllm_meta() -> dict[str, Any]:
+    """直連 vLLM 的 /version 與 /server_info。失敗不中止探測。"""
+    if not VLLM_BASE_URL:
+        return {"configured": False}
+    version_res = get_json_url(f"{VLLM_BASE_URL}/version", timeout_s=15)
+    info_res = get_json_url(f"{VLLM_BASE_URL}/server_info", timeout_s=15)
+    version = None
+    if version_res["ok"] and isinstance(version_res["body"], dict):
+        version = version_res["body"].get("version")
+    flags = extract_vllm_flags(info_res["body"]) if info_res["ok"] else {}
+    detail = None
+    if not info_res["ok"]:
+        detail = (
+            "GET /server_info 失敗。vLLM 需設 VLLM_SERVER_DEV_MODE=1，"
+            "而且這台機器要打得到 VLLM_BASE_URL（不是閘道 /v1）。"
+        )
+    return {
+        "configured": True,
+        "base_url": VLLM_BASE_URL,
+        "version": version,
+        "server_info_http": info_res["http_status"],
+        "flags": flags,
+        "detail": detail,
+    }
 
 
 def run() -> int:
@@ -1270,9 +1215,18 @@ def run() -> int:
             "steps": list(steps),
             "started_at": datetime.now(timezone.utc).astimezone().isoformat(),
             "read": JSON_READ,
+            "vllm": collect_vllm_meta(),
+            "litellm_request_debug": LITELLM_REQUEST_DEBUG,
         },
         "models": {},
     }
+    vllm_meta = report["meta"]["vllm"]
+    if vllm_meta.get("configured"):
+        print(f"vllm={vllm_meta.get('base_url')} flags={vllm_meta.get('flags')}")
+        if vllm_meta.get("detail"):
+            print(vllm_meta["detail"])
+    if LITELLM_REQUEST_DEBUG:
+        print("litellm_request_debug=true（轉發 body 在 Proxy 日誌，用 x-litellm-call-id 對）")
 
     print("-" * 80)
     print(f"RUN {model} steps={list(steps)}")
@@ -1303,9 +1257,20 @@ def run() -> int:
     for r in results:
         counts[r["verdict"]] = counts.get(r["verdict"], 0) + 1
     report["meta"]["counts"] = {VERDICT_ZH.get(k, k): v for k, v in counts.items()}
+    report["meta"]["flow"] = build_flow(
+        model=model,
+        profile_id=MODEL_PROFILE.id,
+        family=MODEL_PROFILE.family,
+        probe_scope=PROBE_SCOPE,
+        vllm=report["meta"]["vllm"],
+        results=results,
+        litellm_request_debug=LITELLM_REQUEST_DEBUG,
+    )
     report["meta"]["finished_at"] = datetime.now(timezone.utc).astimezone().isoformat()
     out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     md_path = write_report_md(out_path, report)
+    print("-" * 80)
+    print(render_flow_md(report["meta"]["flow"]).rstrip())
     print("-" * 80)
     print("counts:", report["meta"]["counts"])
     for model_name, block in report["models"].items():

@@ -19,6 +19,27 @@
     "length_param": "max_tokens",
     "max_output": 1024
   },
+  "sampling": [
+    {
+      "name": "temperature",
+      "default": 1.0,
+      "adjustable": true,
+      "note": "此為模型卡建議值。"
+    },
+    {
+      "name": "top_p",
+      "default": 0.95,
+      "adjustable": true,
+      "note": "此為模型卡建議值。"
+    },
+    {
+      "name": "top_k",
+      "default": 64,
+      "adjustable": true,
+      "integer": true,
+      "note": "此為模型卡建議值。"
+    }
+  ],
   "params": [
     {
       "name": "chat_template_kwargs.enable_thinking",

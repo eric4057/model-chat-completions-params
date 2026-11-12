@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chat Completions 參數比對</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #eeeae4;
+      --muted: #b2a89c;
+      --line: #4a433a;
+      --paper: #12110f;
+      --card: #221e1a;
+      --field: #26221d;
+      --accent: #e08a4f;
+      --ok: #8fd0aa;
+      --ok-bg: #173528;
+      --bad: #f0a8a4;
+      --bad-bg: #3d1d1c;
+      --mid: #e2c48a;
+      --mid-bg: #3a2e18;
+      --control: 40px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.45 ui-sans-serif, system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    header {
+      background: var(--paper);
+      border-bottom: 1px solid var(--line);
+      padding: 20px 24px 16px;
+    }
+    .wrap { width: 100%; }
+    h1 { font-size: 1.15rem; font-weight: 650; margin: 0; }
+    h2 { font-size: 0.95rem; font-weight: 650; color: var(--ink); margin: 0 0 12px; }
+    .note { color: var(--muted); font-size: 0.86rem; margin: 8px 0 12px; max-width: 72ch; }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    .limit { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.86rem; height: var(--control); }
+    #output-limit { width: 7rem; }
+    .gateways { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px; }
+    .gateway {
+      display: grid;
+      grid-template-columns: minmax(240px, 1.4fr) minmax(180px, 0.8fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+    .gateway input { width: 100%; min-width: 0; }
+    input:not([type="checkbox"]), select, button { font: inherit; color: var(--ink); height: var(--control); }
+    input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+    input, select {
+      background: var(--field);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 12px;
+    }
+    select { color-scheme: dark; }
+    #filter { width: 200px; flex: 0 0 200px; }
+    #model { width: 280px; flex: 0 1 280px; }
+    button {
+      background: var(--field);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 16px;
+      cursor: pointer;
+    }
+    button.primary { background: var(--accent); color: #1a120c; border-color: var(--accent); font-weight: 650; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .sub { display: flex; justify-content: space-between; gap: 12px; margin: 8px 0 0; color: var(--muted); font-size: 0.86rem; }
+    #status.ok { color: var(--ok); }
+    #status.bad { color: var(--bad); }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+      gap: 16px;
+      align-items: stretch;
+      min-height: calc(100vh - 188px);
+      padding: 16px 24px 24px;
+    }
+    section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+      min-width: 0;
+      min-height: 100%;
+    }
+    #params { display: flex; flex-direction: column; gap: 12px; }
+    .all, .choice {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+    }
+    .block { display: flex; flex-direction: column; gap: 6px; }
+    .param-name { font-size: 0.78rem; color: var(--muted); }
+    .sample { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+    .sample input { width: 8rem; }
+    .sample input:disabled { opacity: 1; background: var(--paper); color: var(--ink); }
+    .choice { padding: 4px 0; }
+    .choice span { flex: 1; }
+    .matrix-row { display: flex; flex-direction: column; gap: 6px; }
+    .matrix-label { color: var(--muted); font-size: 0.82rem; }
+    .matrix-label b { color: var(--ink); font-weight: 650; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--field);
+      font-size: 0.82rem;
+    }
+    .tag {
+      font-size: 0.75rem;
+      border-radius: 999px;
+      padding: 1px 8px;
+      background: var(--paper);
+      color: var(--muted);
+    }
+    .tag.reject { background: var(--bad-bg); color: var(--bad); }
+    .docs { color: var(--muted); font-size: 0.82rem; }
+    .docs summary { cursor: pointer; }
+    .docs a { display: block; margin-top: 4px; color: var(--accent); word-break: break-all; }
+    .counts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .count {
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.8rem;
+      background: var(--paper);
+    }
+    .count.pass { background: var(--ok-bg); color: var(--ok); }
+    .count.fail { background: var(--bad-bg); color: var(--bad); }
+    .result {
+      border-top: 1px solid var(--line);
+      padding: 10px 0 10px 10px;
+      border-left: 3px solid transparent;
+    }
+    .result.fail { border-left-color: var(--bad); }
+    .result.pass { border-left-color: var(--ok); }
+    .result.noop, .result.skip { border-left-color: var(--mid); }
+    .result-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .result-head strong { font-weight: 650; }
+    .badge { font-weight: 650; margin-left: auto; }
+    .pass .badge, .badge.pass { color: var(--ok); }
+    .fail .badge, .badge.fail { color: var(--bad); }
+    .noop .badge, .skip .badge { color: var(--mid); }
+    .why { margin: 4px 0 0; color: var(--ink); }
+    .quiet { color: var(--muted); font-size: 0.86rem; }
+    details.more { margin-top: 6px; }
+    details.more summary { cursor: pointer; color: var(--muted); font-size: 0.82rem; }
+    .detail { margin: 8px 0 0; font-size: 0.84rem; color: var(--muted); }
+    .detail b { color: var(--ink); font-weight: 600; }
+    .request-code, .response-json {
+      margin: 8px 0 0;
+      max-width: 100%;
+      max-height: 16em;
+      overflow: auto;
+      white-space: pre;
+      background: var(--paper);
+      border-radius: 8px;
+      padding: 8px;
+      font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    button.copy { height: 28px; font-size: 0.8rem; padding: 0 10px; }
+    .empty { color: var(--muted); margin: 0; }
+    .error { color: var(--bad); }
+    @media (max-width: 800px) {
+      .workspace { grid-template-columns: 1fr; }
+      .gateway { grid-template-columns: 1fr; }
+      #filter, #model, #run, .limit, #output-limit { width: 100%; flex-basis: 100%; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>參數比對</h1>
+    <div id="endpoints" class="gateways"></div>
+    <p class="note" id="note"></p>
+    <div class="toolbar">
+      <input id="filter" type="search" placeholder="搜尋模型" disabled>
+      <select id="model" disabled>
+        <option value="">請先連線</option>
+      </select>
+      <label class="limit"><span id="length-name">max_tokens</span>
+        <select id="output-limit">
+          <option value="1024">1024</option>
+          <option value="2048">2048</option>
+          <option value="4096">4096</option>
+        </select>
+      </label>
+      <button id="run" class="primary" disabled>執行比對</button>
+    </div>
+    <div class="sub">
+      <span id="family"></span>
+      <span id="status"></span>
+    </div>
+  </div>
+</header>
+<div class="workspace wrap">
+  <section>
+    <h2>參數</h2>
+    <div id="params"><p class="empty">請選擇模型，以載入官方參數。</p></div>
+  </section>
+  <section>
+    <h2>比對結果</h2>
+    <div id="summary"></div>
+    <p id="conclusion" class="quiet"></p>
+    <div id="table"><p class="empty">比對結果將顯示於此。不一致項目置於前方。</p></div>
+  </section>
+</div>
+<script>
+const state = { endpoint: "", model: "", models: [], endpoints: [] };
+const KIND = { "一致": "pass", "不一致": "fail", "無法判定": "noop", "閘道不收": "skip" };
+
+function el(id) { return document.getElementById(id); }
+
+function setStatus(text, kind = "") {
+  const node = el("status");
+  node.textContent = text;
+  node.className = kind;
+}
+
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
+  }[ch]));
+}
+
+async function api(path, options) {
+  const response = await fetch(path, options);
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || response.statusText);
+  return body;
+}
+
+function selectedCaseIds() {
+  return [...document.querySelectorAll("#params input[data-case]:checked")].map((node) => node.dataset.case);
+}
+
+function shortParam(name) {
+  const parts = String(name || "").split(".");
+  return parts[parts.length - 1] || name;
+}
+
+function shortValue(choice) {
+  let label = String(choice.label || choice.case_id || "");
+  label = label.replace(/ 應拒$/, "");
+  if (label.includes("×")) return label;
+  const cut = label.lastIndexOf("=");
+  if (cut >= 0) return label.slice(cut + 1);
+  return label.replace(/^官網範例\s*/, "");
+}
+
+function renderModelOptions() {
+  const query = el("filter").value.trim().toLowerCase();
+  const models = state.models.filter((item) => !query || item.id.toLowerCase().includes(query) || String(item.family || "").toLowerCase().includes(query));
+  const selected = state.model;
+  const groups = [
+    ["已記載參數", models.filter((item) => item.has_params)],
+    ["未記載參數", models.filter((item) => !item.has_params)],
+  ];
+  const html = ['<option value="">請選擇模型</option>'].concat(groups.map(([label, items]) => {
+    if (!items.length) return "";
+    const options = items.map((item) => `<option value="${esc(item.id)}">${esc(item.id)}</option>`).join("");
+    return `<optgroup label="${esc(label)}">${options}</optgroup>`;
+  }));
+  const select = el("model");
+  select.innerHTML = html.join("");
+  if (selected && models.some((item) => item.id === selected)) select.value = selected;
+}
+
+function syncAll() {
+  const boxes = [...document.querySelectorAll("#params input[data-case]")];
+  const all = el("all");
+  if (!all || !boxes.length) return;
+  all.checked = boxes.every((node) => node.checked);
+  all.indeterminate = !all.checked && boxes.some((node) => node.checked);
+}
+
+function formatSampling(field) {
+  const value = Number(field.default);
+  if (!Number.isFinite(value)) return "";
+  if (field.integer || !Number.isInteger(value)) return String(value);
+  return value.toFixed(1);
+}
+
+function samplingCaption(field) {
+  const extra = field.note ? field.note : "";
+  if (!field.send) return extra || "此參數不列入請求。";
+  const shown = formatSampling(field);
+  const base = field.adjustable
+    ? `預設值 ${shown}。未修改時送出預設值；修改後送出輸入值。`
+    : `預設值 ${shown}。此值依規格固定，請求一律送出。`;
+  return extra ? `${base}${extra}` : base;
+}
+
+function renderSampling(sampling) {
+  if (!sampling || !sampling.length) return "";
+  const rows = sampling.map((field) => {
+    const caption = `<p class="quiet">${esc(samplingCaption(field))}</p>`;
+    if (field.default == null || !field.send) {
+      return `<div class="sample"><span class="param-name">${esc(field.name)}</span>${caption}</div>`;
+    }
+    const min = field.minimum == null ? "" : ` min="${esc(field.minimum)}"`;
+    const max = field.maximum == null ? "" : ` max="${esc(field.maximum)}"`;
+    const step = ` step="${esc(field.step == null ? (field.integer ? 1 : 0.1) : field.step)}"`;
+    return `<label class="sample"><span class="param-name">${esc(field.name)}</span><input type="number" data-sampling="${esc(field.name)}" value="${esc(field.default)}"${min}${max}${step}>${caption}</label>`;
+  }).join("");
+  return `<div class="block"><div class="param-name">取樣參數</div>${rows}</div>`;
+}
+
+function samplingPayload() {
+  const out = {};
+  document.querySelectorAll("#params input[data-sampling]").forEach((node) => {
+    const raw = node.value.trim();
+    if (raw === "") return;
+    const value = Number(raw);
+    if (Number.isNaN(value)) return;
+    out[node.dataset.sampling] = value;
+  });
+  return out;
+}
+
+function choiceBox(choice) {
+  const reject = choice.expect === "應拒";
+  return `<label class="choice">
+    <input type="checkbox" data-case="${esc(choice.case_id)}">
+    <span title="${esc(choice.label)}">${esc(shortValue(choice))}</span>
+    <em class="tag${reject ? " reject" : ""}">${reject ? "應拒" : "應符合"}</em>
+  </label>`;
+}
+
+function matrixKeys(choices) {
+  const first = choices[0] && choices[0].value;
+  if (!first || typeof first !== "object" || Array.isArray(first)) return null;
+  const keys = Object.keys(first);
+  if (keys.length !== 2) return null;
+  const same = choices.every((choice) => {
+    const value = choice.value;
+    return value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).join("|") === keys.join("|");
+  });
+  return same ? keys : null;
+}
+
+function renderMatrix(group, keys) {
+  const [rowKey, colKey] = keys;
+  const rows = [];
+  const cols = [];
+  group.choices.forEach((choice) => {
+    const row = String(choice.value[rowKey]);
+    const col = String(choice.value[colKey]);
+    if (!rows.includes(row)) rows.push(row);
+    if (!cols.includes(col)) cols.push(col);
+  });
+  const sections = rows.map((row) => {
+    const cells = cols.map((col) => {
+      const choice = group.choices.find((item) => String(item.value[rowKey]) === row && String(item.value[colKey]) === col);
+      if (!choice) return "";
+      return `<label class="chip" title="${esc(choice.label)}"><input type="checkbox" data-case="${esc(choice.case_id)}"><span>${esc(col)}</span></label>`;
+    }).join("");
+    return `<div class="matrix-row"><div class="matrix-label">${esc(rowKey)} = <b>${esc(row)}</b></div><div class="chips">${cells}</div></div>`;
+  }).join("");
+  return `<div class="block"><div class="param-name">組合</div><p class="quiet">同一請求送出 ${esc(rowKey)} 與 ${esc(colKey)}。下列組合皆應符合文件。</p>${sections}</div>`;
+}
+
+function renderParams(payload) {
+  const root = el("params");
+  const choices = payload.groups.flatMap((group) => group.choices);
+  if (!choices.length) {
+    root.innerHTML = '<p class="empty">此模型沒有額外的官方參數。</p>';
+    el("run").disabled = true;
+    return;
+  }
+  const blocks = payload.groups.map((group) => {
+    const keys = matrixKeys(group.choices);
+    if (keys) return renderMatrix(group, keys);
+    const rows = group.choices.map(choiceBox).join("");
+    return `<div class="block"><div class="param-name" title="${esc(group.param)}">${esc(shortParam(group.param))}</div>${rows}</div>`;
+  }).join("");
+  const quotes = [...new Set(choices.map((choice) => choice.docs_quote).filter(Boolean))];
+  const sources = payload.source || [];
+  const docs = (quotes.length || sources.length) ? `<details class="docs"><summary>參考文件</summary>${quotes.map((quote) => `<p>${esc(quote)}</p>`).join("")}${sources.map((url) => `<a href="${esc(url)}">${esc(url)}</a>`).join("")}</details>` : "";
+  root.innerHTML = `<label class="all"><input type="checkbox" id="all">全選</label>${blocks}${renderSampling(payload.sampling)}${docs}`;
+  root.onchange = (event) => {
+    if (event.target.id === "all") {
+      const on = event.target.checked;
+      document.querySelectorAll("#params input[data-case]").forEach((node) => { node.checked = on; });
+      return;
+    }
+    syncAll();
+  };
+  el("run").disabled = false;
+}
+
+function actualLine(row) {
+  return String(row.actual || "").replace(/^HTTP [^；]*；?/, "");
+}
+
+function specLine(row) {
+  let text = String(row.official || row.docs_quote || "");
+  for (const head of [row.case_id, row.desc]) {
+    const prefix = head ? String(head) + "；" : "";
+    if (prefix && text.startsWith(prefix)) text = text.slice(prefix.length);
+  }
+  return text;
+}
+
+function presentConclusion(text) {
+  if (text === "這次契約槍沒有看到部署問題") return "本次請求未發現與官方規格不符之處。";
+  if (text.startsWith("這次沒有契約槍")) return "此模型沒有可送出的官方參數。";
+  return text;
+}
+
+function reason(row) {
+  return String(row.difference || "").replace(/^FAIL；/, "").replace(/^—$/, "");
+}
+
+function renderResults(body) {
+  const rows = [...(body.rows || [])].sort((a, b) => {
+    const order = { fail: 0, noop: 1, skip: 2, pass: 3 };
+    return (order[KIND[a.match]] ?? 9) - (order[KIND[b.match]] ?? 9);
+  });
+  const counts = rows.reduce((acc, row) => {
+    const kind = KIND[row.match] || "noop";
+    acc[kind] = (acc[kind] || 0) + 1;
+    return acc;
+  }, {});
+  const labels = { pass: "一致", fail: "不一致", noop: "無法判定", skip: "閘道不收" };
+  el("summary").innerHTML = Object.entries(labels)
+    .filter(([kind]) => counts[kind])
+    .map(([kind, label]) => `<span class="count ${kind}">${counts[kind]} ${label}</span>`)
+    .join("");
+  if (!rows.length) {
+    el("table").innerHTML = '<p class="empty">沒有可送出的官方參數。</p>';
+    return;
+  }
+  el("table").innerHTML = rows.map((row) => {
+    const kind = KIND[row.match] || "noop";
+    const why = reason(row);
+    const actual = actualLine(row);
+    const spec = specLine(row);
+    return `<article class="result ${kind}">
+      <div class="result-head">
+        <strong>${esc(row.desc || row.case_id)}</strong>
+        <span class="quiet">HTTP ${esc(row.http_status)}</span>
+        <span class="badge">${esc(row.match)}</span>
+      </div>
+      ${why ? `<p class="why">${esc(why)}</p>` : ""}
+      ${actual ? `<p class="quiet">${esc(actual)}</p>` : ""}
+      <details class="more json-block">
+        <summary>回應 JSON</summary>
+        <pre class="response-json"></pre>
+      </details>
+      <details class="more">
+        <summary>請求腳本</summary>
+        <button type="button" class="copy">複製腳本</button>
+        <pre class="request-code"></pre>
+      </details>
+      ${spec ? `<p class="detail"><b>規格</b> ${esc(spec)}</p>` : ""}
+    </article>`;
+  }).join("");
+  el("table").querySelectorAll("article.result").forEach((node, index) => {
+    const jsonBlock = node.querySelector("details.json-block");
+    const jsonPre = node.querySelector("pre.response-json");
+    const document = rows[index].response_json || "";
+    if (jsonPre) jsonPre.textContent = document;
+    if (jsonBlock && !document) jsonBlock.hidden = true;
+    const code = rows[index].request_code || "";
+    const block = node.querySelector("details.more:not(.json-block)");
+    if (!code) {
+      if (block) block.hidden = true;
+      return;
+    }
+    const script = block.querySelector("pre.request-code");
+    if (script) script.textContent = code;
+  });
+  el("table").onclick = async (event) => {
+    const button = event.target.closest("button.copy");
+    if (!button) return;
+    const pre = button.parentElement.querySelector("pre.request-code");
+    const text = pre ? pre.textContent : "";
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (error) {
+      const area = document.createElement("textarea");
+      area.value = text;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    button.textContent = "已複製";
+  };
+}
+
+async function loadModels() {
+  el("model").disabled = true;
+  el("filter").disabled = true;
+  el("family").textContent = "正在載入模型清單";
+  el("params").innerHTML = '<p class="empty">請選擇模型，以載入官方參數。</p>';
+  el("run").disabled = true;
+  const body = await api("/api/models?endpoint=" + encodeURIComponent(state.endpoint));
+  state.models = body.models;
+  state.model = "";
+  renderModelOptions();
+  el("model").disabled = false;
+  el("filter").disabled = false;
+  el("family").textContent = "共 " + body.models.length + " 個模型";
+}
+
+async function loadParams() {
+  state.model = el("model").value;
+  el("conclusion").textContent = "";
+  el("conclusion").className = "quiet";
+  el("summary").innerHTML = "";
+  el("table").innerHTML = '<p class="empty">比對結果將顯示於此。不一致項目置於前方。</p>';
+  const picked = state.models.find((item) => item.id === state.model);
+  if (!state.model) {
+    el("params").innerHTML = '<p class="empty">請選擇模型，以載入官方參數。</p>';
+    el("run").disabled = true;
+    el("family").textContent = "共 " + state.models.length + " 個模型";
+    return;
+  }
+  el("params").innerHTML = '<p class="empty">正在載入參數</p>';
+  const body = await api("/api/params?endpoint=" + encodeURIComponent(state.endpoint) + "&model=" + encodeURIComponent(state.model));
+  el("family").textContent = body.family ? body.family : (picked && picked.family) || "未對應官方規格";
+  renderOutputLimit(body);
+  renderParams(body);
+}
+
+function renderOutputLimit(body) {
+  const select = el("output-limit");
+  const current = select.value;
+  const limits = body.output_limits || [];
+  if (limits.length) {
+    select.innerHTML = limits.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("");
+  }
+  const allowed = [...select.options].map((option) => option.value);
+  const preferred = String(body.output_limit || "");
+  select.value = allowed.includes(current) ? current : (allowed.includes(preferred) ? preferred : allowed[0]);
+  el("length-name").textContent = body.length_param || "max_tokens";
+}
+
+async function runProbe() {
+  const caseIds = selectedCaseIds();
+  if (!caseIds.length) {
+    setStatus("請至少選取一項參數。", "bad");
+    return;
+  }
+  el("run").disabled = true;
+  setStatus("比對進行中，完成後顯示結果。");
+  el("conclusion").textContent = "";
+  el("summary").innerHTML = "";
+  el("table").innerHTML = '<p class="empty">比對進行中。</p>';
+  try {
+    const body = await api("/api/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        endpoint: state.endpoint,
+        model: state.model,
+        case_ids: caseIds,
+        max_output: Number(el("output-limit").value),
+        sampling: samplingPayload(),
+      }),
+    });
+    const flow = body.flow || {};
+    el("conclusion").textContent = presentConclusion(flow.conclusion || "");
+    el("conclusion").className = "quiet";
+    renderResults(body);
+  } catch (error) {
+    setStatus("");
+    el("conclusion").textContent = error.message;
+    el("conclusion").className = "error";
+    el("table").innerHTML = "";
+    el("run").disabled = false;
+    return;
+  }
+  setStatus("比對完成");
+  el("run").disabled = false;
+}
+
+function renderGateway(item) {
+  const box = el("endpoints");
+  box.replaceChildren();
+  const form = document.createElement("form");
+  form.className = "gateway";
+  form.dataset.id = item.id;
+  const keyHint = item.configured ? "已設定。留空則沿用現有金鑰。" : "API 金鑰";
+  form.innerHTML = `<input type="url" name="base_url" placeholder="endpoint" value="${esc(item.base_url || "")}" autocomplete="off" spellcheck="false">
+    <input type="password" name="api_key" placeholder="${esc(keyHint)}" autocomplete="off">
+    <button type="submit">連線</button>`;
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    connectGateway(form).catch((error) => { setStatus(error.message, "bad"); });
+  });
+  box.appendChild(form);
+}
+
+async function connectGateway(form) {
+  const item = state.endpoints.find((row) => row.id === form.dataset.id);
+  const apiKey = form.elements.api_key.value.trim();
+  if (!item || (!item.configured && !apiKey)) {
+    setStatus("請輸入 API 金鑰。", "bad");
+    return;
+  }
+  setStatus("正在連線");
+  const saved = await api("/api/credentials", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      endpoint: item.id,
+      base_url: form.elements.base_url.value.trim(),
+      api_key: apiKey,
+    }),
+  });
+  const index = state.endpoints.findIndex((row) => row.id === saved.id);
+  if (index >= 0) state.endpoints[index] = saved;
+  form.elements.api_key.value = "";
+  form.elements.api_key.placeholder = "已設定。留空則沿用現有金鑰。";
+  state.endpoint = saved.id;
+  await loadModels();
+  setStatus("連線成功", "ok");
+}
+
+async function boot() {
+  const body = await api("/api/endpoints");
+  el("note").textContent = "「一致」表示 HTTP 狀態與回應欄位符合官方文件，不比較生成全文。";
+  el("note").title = body.compare_note || "";
+  state.endpoints = body.endpoints;
+  const preferred = body.endpoints.find((item) => item.configured) || body.endpoints[0];
+  renderGateway(preferred || { id: "", base_url: "", configured: false });
+  el("filter").addEventListener("input", renderModelOptions);
+  el("model").addEventListener("change", () => loadParams().catch((error) => { el("family").textContent = error.message; }));
+  el("run").addEventListener("click", () => runProbe());
+  if (preferred && preferred.configured) {
+    state.endpoint = preferred.id;
+    loadModels()
+      .then(() => setStatus("連線成功", "ok"))
+      .catch((error) => { el("family").textContent = error.message; setStatus(error.message, "bad"); });
+  } else {
+    el("family").textContent = "請填寫 endpoint 與 API 金鑰後連線。";
+  }
+}
+
+boot().catch((error) => { el("note").textContent = error.message; });
+</script>
+</body>
+</html>

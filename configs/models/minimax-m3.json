@@ -4,7 +4,7 @@
   "known": true,
   "transport": "openai_chat",
   "baseline": true,
-  "note": "Chat Completions 用 thinking.type=disabled|adaptive|enabled。可關 thinking。長度欄建議 max_completion_tokens。",
+  "note": "只對 MiniMax-M3，不含 M3.1-Flash。thinking.type 官方是 adaptive（預設）與 disabled；disabled 會直接回答。沒有 enabled。reasoning_split 只改回傳欄位。",
   "source": [
     "https://platform.minimax.io/docs/api-reference/text-chat-openai"
   ],
@@ -17,12 +17,25 @@
     "length_param": "max_completion_tokens",
     "max_output": 1024
   },
+  "sampling": [
+    {
+      "name": "temperature",
+      "default": 1,
+      "adjustable": false,
+      "note": ""
+    },
+    {
+      "name": "top_p",
+      "default": 0.95,
+      "adjustable": false,
+      "note": ""
+    }
+  ],
   "params": [
     {
       "name": "thinking.type",
       "kind": "enum",
       "values": [
-        "enabled",
         "adaptive",
         "disabled"
       ],
@@ -33,7 +46,7 @@
       "invalid_example": "not-a-level",
       "effect": "has_reasoning",
       "can_disable": true,
-      "note": "省略時官方預設會想；disabled 關閉"
+      "note": "省略時預設 adaptive；disabled 關閉思考"
     },
     {
       "name": "reasoning_split",

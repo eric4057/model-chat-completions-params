@@ -18,6 +18,18 @@
     "length_param": "max_tokens",
     "max_output": 1024
   },
+  "sampling": [
+    {
+      "name": "reasoning_budget",
+      "default": 16384,
+      "step": 128,
+      "adjustable": true,
+      "integer": true,
+      "minimum": -1,
+      "maximum": 32768,
+      "note": "有效範圍為 -1 至 32768。若參數清單另有探測值，該次請求改以探測值為準。"
+    }
+  ],
   "params": [
     {
       "name": "reasoning_effort",

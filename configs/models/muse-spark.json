@@ -1,0 +1,78 @@
+{
+  "id": "muse-spark",
+  "family": "Meta Muse Spark Open",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "Muse-Spark-Open-816B。reasoning_effort 只收 low／medium／high／xhigh，預設 xhigh。思考不能關。none、max 及其他值會報錯。也可改用 chat_template_kwargs.reasoning_effort，網站只列頂層欄位。",
+  "source": [
+    "https://huggingface.co/meta-models/Muse-Spark-Open-816B-A42B",
+    "https://dev.meta.ai/docs/muse-spark-open/prompting",
+    "https://dev.meta.ai/docs/muse-spark-open/settings"
+  ],
+  "match": {
+    "id_prefix": [
+      "muse-spark"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_tokens",
+    "max_output": 1024
+  },
+  "sampling": [
+    {
+      "name": "temperature",
+      "default": 1.0,
+      "adjustable": true,
+      "note": "此為官方建議值。"
+    },
+    {
+      "name": "top_p",
+      "default": 1.0,
+      "adjustable": true,
+      "note": "此為官方建議值。"
+    },
+    {
+      "name": "top_k",
+      "adjustable": false,
+      "send": false,
+      "note": "官方建議關閉此參數。"
+    }
+  ],
+  "params": [
+    {
+      "name": "reasoning_effort",
+      "kind": "enum",
+      "values": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "default": "xhigh",
+      "reject": [
+        "none",
+        "minimal",
+        "max"
+      ],
+      "effect": "has_reasoning",
+      "can_disable": false,
+      "note": "只收 low／medium／high／xhigh。預設 xhigh。不能關思考。"
+    }
+  ],
+  "official_examples": [
+    {
+      "id": "reasoning-effort-high",
+      "source": "https://dev.meta.ai/docs/muse-spark-open/prompting",
+      "prompt": "Find the race condition in this worker-pool design.",
+      "request": {
+        "reasoning_effort": "high"
+      },
+      "docs_quote": "reasoning 與 content 分開回傳",
+      "expect": {
+        "http": 200,
+        "message_fields": ["content", "reasoning_content"]
+      }
+    }
+  ]
+}

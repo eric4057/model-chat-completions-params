@@ -38,6 +38,26 @@
       "type": "array",
       "items": { "$ref": "#/$defs/param" }
     },
+    "sampling": {
+      "type": "array",
+      "description": "官方取樣預設。adjustable 為 false 時網站只註記，請求仍送 send 為 true 的預設。",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "default": { "type": ["number", "null"] },
+          "adjustable": { "type": "boolean", "default": false },
+          "send": { "type": "boolean", "default": true },
+          "integer": { "type": "boolean", "default": false },
+          "minimum": { "type": "number" },
+          "maximum": { "type": "number" },
+          "step": { "type": "number", "exclusiveMinimum": 0 },
+          "note": { "type": "string" }
+        }
+      }
+    },
     "official_examples": {
       "type": "array",
       "description": "重打官網範例請求，比對文件寫死的回覆欄位（不是全文標準答案）",

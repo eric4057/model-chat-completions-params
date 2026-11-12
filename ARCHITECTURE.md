@@ -34,18 +34,6 @@ vLLM `--reasoning-parser`／`--tool-call-parser`、LiteLLM 是否丟參數：腳
 
 `like_default`（或像已確認為預設的 `max`）→ **不是獨立檔**。`not_default` 只證明不是預設，**不能**證明就是官方的 `medium`／`high`。
 
-```mermaid
-flowchart LR
-  Chk{env} -->|缺| Stop1[停]
-  Chk -->|有| Z[GET /models]
-  Z -->|失敗| Stop2[停]
-  Z -->|ok| A[A 官方參數]
-  A --> E[E locked]
-  E --> Extra{full?}
-  Extra -->|否| W[寫 JSON]
-  Extra -->|是| B[B] --> C[C] --> D[D] --> F[F] --> W
-```
-
 考卷三句（`full` 才用；`official` 的官網範例槍用 Profile 裡的原文 prompt）：
 
 | 鍵 | 用於 | 內容 |
@@ -171,6 +159,10 @@ Kimi／gpt-oss 官方不能關思考：只有「開」× 串流兩槍。`reasoni
 | OK | `pass` | 這題預期成立 |
 | FAIL | `fail` | 應成功卻失敗；非法參數回 **5xx** |
 | NOOP | `noop` | 2xx 但欄位／行為沒對上，或只證明閘道接受、無法證明生效 |
-| SKIP | `skip` | 該參數 **4xx** 不接受 |
+| SKIP | `skip` | 該參數 **4xx** 不接受（401／403／429 除外，那些是 FAIL） |
+
+HTTP 200 仍可能失敗：思考標記寫在 `content`（`content_leak`）、推理只在 `provider_specific_fields.reasoning`（`unmapped_provider_field`）、串流 chunk 帶 `error`、body 沒有 `choices`。`finish_reason=length` 且看不到思考欄 → NOOP，不把截斷當成「參數沒生效」。
+
+`fault.class` 分開記來源：`gateway_param`（unexpected keyword／UnsupportedParams）、`gateway_bug`（LiteLLM 5xx）、`vllm_engine`（EngineCore／reasoning parser／Traceback）、`transport_timeout`、`upstream_closed`。客戶端仍看不到啟動旗標與轉發 body；有設 `VLLM_BASE_URL` 才讀 `/server_info`，有設 `LITELLM_REQUEST_DEBUG` 才把轉發 curl 打到 Proxy 日誌。
 
 怎麼跑見 [README.md](./README.md)。

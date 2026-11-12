@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from probe.faults import content_has_thought, observe_reasoning
+
 
 def openai_error(
     message: str,
@@ -25,9 +27,13 @@ def openai_error(
 
 
 def verdict_expect_reject(status: int | None) -> tuple[str, str]:
-    """非法參數應 4xx。5xx 是伺服器錯，不算驗證通過。"""
+    """非法參數應 4xx。401／429／5xx 不是參數拒絕。"""
     if status is None:
         return "fail", "無 HTTP 狀態（timeout／curl）"
+    if status in (401, 403):
+        return "fail", f"HTTP {status} 是認證／權限，不是參數拒絕"
+    if status == 429:
+        return "fail", "HTTP 429 是限流，不是參數拒絕"
     if 400 <= status <= 499:
         return "pass", f"HTTP {status} 客戶端拒絕"
     if status >= 500:
@@ -38,6 +44,10 @@ def verdict_expect_reject(status: int | None) -> tuple[str, str]:
 def verdict_non_200(status: int | None, what: str) -> tuple[str, str]:
     if status is None:
         return "fail", f"{what}：無 HTTP 狀態（timeout／curl）"
+    if status in (401, 403):
+        return "fail", f"{what}：HTTP {status} 認證／權限失敗"
+    if status == 429:
+        return "fail", f"{what}：HTTP 429 限流"
     if 400 <= status <= 499:
         return "skip", f"{what} 不接受（HTTP {status}）"
     return "fail", f"{what} HTTP {status}"
@@ -115,6 +125,12 @@ def match_official_example(
             evidence,
         )
     if missing:
+        reasoned = _reasoning_gap(result, missing)
+        if reasoned is not None:
+            verdict, note, proof = reasoned
+            evidence["proof"] = proof
+            evidence["matches_example"] = False
+            return verdict, note, evidence
         evidence["proof"] = "shape_mismatch"
         evidence["matches_example"] = False
         return (
@@ -144,6 +160,14 @@ def match_official_example(
             "不符合官方寫死的回覆：不應出現 " + ",".join(extra_present),
             evidence,
         )
+    absent_names = {str(name) for name in (spec.get("absent_fields") or ())}
+    if absent_names & {"reasoning", "reasoning_content"}:
+        hidden = _thinking_still_visible(result)
+        if hidden is not None:
+            verdict, note, proof = hidden
+            evidence["matches_example"] = False
+            evidence["proof"] = proof
+            return verdict, note, evidence
     evidence["matches_example"] = True
     alias_notes = [
         f"{name} 閘道欄名是 {detail.get('observed_key')}"
@@ -154,6 +178,71 @@ def match_official_example(
     if alias_notes:
         note += "；" + "；".join(alias_notes)
     return "pass", note, evidence
+
+
+def _reasoning_gap(
+    result: dict[str, Any],
+    missing: list[str],
+) -> tuple[str, str, str] | None:
+    """缺 reasoning 欄位時，用漏欄／未映射／截斷把原因寫出來。"""
+    if not any(name in ("reasoning", "reasoning_content") for name in missing):
+        return None
+    return _named_reasoning_gap(result)
+
+
+def _thinking_still_visible(result: dict[str, Any]) -> tuple[str, str, str] | None:
+    """官方要求不回 reasoning，但思考仍在 content 或 provider 欄。"""
+    obs = observe_reasoning(result)
+    if obs["kind"] == "content_leak" or content_has_thought(result.get("content")):
+        return (
+            "fail",
+            "關閉後思考仍寫在 content",
+            "content_leak",
+        )
+    if obs["kind"] == "provider_only":
+        return (
+            "fail",
+            "關閉後 provider_specific_fields.reasoning 仍有內容",
+            "unmapped_provider_field",
+        )
+    return None
+
+
+def _named_reasoning_gap(result: dict[str, Any]) -> tuple[str, str, str] | None:
+    obs = observe_reasoning(result)
+    if obs["kind"] == "content_leak":
+        return (
+            "fail",
+            "思考寫在 content，官方欄位 reasoning_content 是空的",
+            "content_leak",
+        )
+    if obs["kind"] == "provider_only":
+        return (
+            "fail",
+            "推理在 provider_specific_fields，未映射到 reasoning_content",
+            "unmapped_provider_field",
+        )
+    if obs["kind"] == "truncated":
+        return (
+            "noop",
+            "finish_reason=length，無法判斷官方欄位",
+            "truncated",
+        )
+    return None
+
+
+def reasoning_channel_verdict(result: dict[str, Any]) -> tuple[str, str]:
+    """有沒有獨立 reasoning 欄。漏在 content／provider 算失敗，截斷算無法判斷。"""
+    obs = observe_reasoning(result)
+    if obs["kind"] == "field":
+        return "pass", "有 reasoning 欄位"
+    if obs["kind"] == "content_leak":
+        return "fail", "思考寫在 content，沒有獨立 reasoning 欄位"
+    if obs["kind"] == "provider_only":
+        return "fail", "推理在 provider_specific_fields，未映射到 reasoning 欄位"
+    if obs["kind"] == "truncated":
+        return "noop", "finish_reason=length，無法判斷思考有沒有產生"
+    return "noop", "無 reasoning 欄位（參數未生效或閘道剝除）"
 
 
 def official_reply_spec(case: Any, *, source: str) -> dict[str, Any]:
@@ -252,15 +341,24 @@ def refine_effect(
         return "pass", "", None
 
     if effect == "no_reasoning" or (effect == "has_reasoning" and disable):
+        obs = observe_reasoning(result)
+        visible = _thinking_still_visible(result)
+        if visible is not None:
+            return visible[0], visible[1], None
         if has_reasoning(result):
             if can_disable is False:
                 return "fail", "契約不符：官方不允許關 thinking，閘道卻仍有 reasoning", None
             return "noop", "關閉後仍有 reasoning", None
+        if obs["kind"] == "truncated":
+            return "noop", "finish_reason=length，無法判斷關閉有沒有作用", None
         if not has_reasoning(baseline):
             return "noop", "預設槍本來就沒有 reasoning，證明不了關閉有作用", None
         return "pass", "無 reasoning 欄位", None
 
     if effect == "hidden_reasoning":
+        visible = _thinking_still_visible(result)
+        if visible is not None:
+            return "fail", visible[1], None
         if has_reasoning(result):
             return "noop", "include_reasoning=false 仍回傳 reasoning 欄位", None
         if not (result.get("content") or "").strip():
@@ -268,12 +366,19 @@ def refine_effect(
         return "pass", "無 reasoning 欄位且仍有 content", None
 
     if effect == "has_reasoning":
-        if has_reasoning(result):
-            return "pass", "有 reasoning 欄位", None
-        return "noop", "無 reasoning 欄位（查閘道是否剝除，或參數未注入）", None
+        verdict, note = reasoning_channel_verdict(result)
+        return verdict, note, None
 
     if effect == "reasoning_tokens_rank":
         compare = _rank_compare(result, baseline, group_results)
+        obs = observe_reasoning(result)
+        if obs["kind"] in ("content_leak", "provider_only"):
+            verdict, note = reasoning_channel_verdict(result)
+            compare["vs_default"] = "unknown"
+            return verdict, note, compare
+        if obs["kind"] == "truncated" and not has_reasoning(result):
+            compare["vs_default"] = "unknown"
+            return "noop", "finish_reason=length，無法比強度", compare
         if not has_reasoning(result):
             compare["vs_default"] = "unknown"
             return (

@@ -35,13 +35,16 @@ flowchart TD
   Gen --> A["打這家官網列出的特殊參數<br/>以及官網範例的回覆欄位"]
   A --> E["若官網寫死不能改的值<br/>也打一槍確認改了會被拒"]
   E --> Extra{"還要通用考卷？<br/>PROBE_SCOPE=full"}
-  Extra -->|否 預設 official| W["寫 results 對照表"]
+  Extra -->|否 預設 official| Class["歸類：漏欄／未映射／<br/>閘道丟參數／vLLM 引擎"]
   Extra -->|是 full| B["B 指定輸出 JSON"]
   B --> C["C 會不會呼叫工具"]
   C --> D["D 串流能不能組回完整回覆"]
   D --> F["F 思考開關×串流<br/>再疊 JSON／工具"]
-  F --> W
+  F --> Class
+  Class --> W["寫 results：流程結論 + 對照表"]
 ```
+
+寫檔前固定走四段：對上模型 →（有 `VLLM_BASE_URL` 才讀旗標）→ 探測 → 把同一類問題收成 `meta.flow.conclusion`。單題失敗仍不中止。
 
 `full` 在 B 之前還會多打：預設會不會思考（`A.enable`）、多輪回填 assistant（`A.multiturn`）、以及未鎖定的 temperature（E 多一槍「閘道接不接受」）。
 
@@ -71,14 +74,7 @@ flowchart LR
   Fields --> Next
 ```
 
-| 文件寫什麼 | 判定 |
-|------------|------|
-| 回 `content` + `reasoning_content` | 兩欄非空 → OK（閘道 `reasoning` 當別名） |
-| 關 thinking 後不回 reasoning | `content` 非空且**沒有** reasoning → OK；仍有 → FAIL |
-| 該參數應拒（例如 Kimi 改 temperature） | 4xx → OK；200 → FAIL（閘道比官方寬） |
-| 官網範例同一句 prompt | 檢查官方說的欄位，**不比全文** |
-
-`reasoning_tokens` 檔位排名**不是**這層的證明。
+每一槍怎麼判見 [ARCHITECTURE.md](./ARCHITECTURE.md)「official scope」。`reasoning_tokens` 檔位排名**不是**這層的證明。
 
 ---
 
@@ -105,13 +101,4 @@ flowchart LR
 
 ---
 
-## verdict
-
-| 終端 | `verdict` | 何時 |
-|------|-----------|------|
-| OK | `pass` | 這題預期成立 |
-| FAIL | `fail` | 應成功卻失敗；非法參數回 **5xx**；官方應拒卻 200 |
-| NOOP | `noop` | 2xx 但欄位／行為沒對上，或只證明閘道接受 |
-| SKIP | `skip` | 該參數 **4xx** 不接受 |
-
-怎麼跑、**結果檔欄位**見 [README.md](./README.md)。family 清單見 [configs/models/README.md](./configs/models/README.md)。逐步判定見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
+怎麼跑、**結果檔欄位**見 [README.md](./README.md)。family 清單見 [configs/models/README.md](./configs/models/README.md)。判定表只維護在 [ARCHITECTURE.md](./ARCHITECTURE.md)「判定」。

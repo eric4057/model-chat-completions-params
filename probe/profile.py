@@ -34,6 +34,21 @@ class RequestDefaults:
 
 
 @dataclass(frozen=True)
+class SamplingField:
+    """官方取樣欄。adjustable 為 false 時網站只註記預設，請求仍送出。"""
+
+    name: str
+    default: int | float | None
+    adjustable: bool
+    send: bool
+    note: str
+    integer: bool = False
+    minimum: int | float | None = None
+    maximum: int | float | None = None
+    step: int | float = 1
+
+
+@dataclass(frozen=True)
 class OfficialExample:
     id: str
     source: str
@@ -78,6 +93,7 @@ class ModelProfile:
     source: tuple[str, ...]
     params: tuple[ParamSpec, ...]
     official_examples: tuple[OfficialExample, ...] = ()
+    sampling: tuple[SamplingField, ...] = ()
     path: Path | None = field(default=None, compare=False)
 
     def param(self, name: str) -> ParamSpec | None:
@@ -159,6 +175,51 @@ def _parse_official_example(raw: dict[str, Any], *, origin: str) -> OfficialExam
     )
 
 
+def _parse_sampling(raw: dict[str, Any], *, origin: str) -> SamplingField:
+    name = raw.get("name")
+    if not isinstance(name, str) or not name:
+        raise ProfileError(f"{origin}: sampling.name 必須是非空字串")
+    send = bool(raw.get("send", True))
+    default = raw.get("default")
+    if send and (isinstance(default, bool) or not isinstance(default, (int, float))):
+        raise ProfileError(f"{origin}: {name} default 必須是數字")
+    if not send and default is not None and (isinstance(default, bool) or not isinstance(default, (int, float))):
+        raise ProfileError(f"{origin}: {name} default 必須是數字或省略")
+    integer = bool(raw.get("integer", False))
+    if integer and isinstance(default, float) and not default.is_integer():
+        raise ProfileError(f"{origin}: {name} default 必須是整數")
+    minimum = _optional_number(raw.get("minimum"), origin=origin, label="minimum")
+    maximum = _optional_number(raw.get("maximum"), origin=origin, label="maximum")
+    step = raw.get("step", _default_sampling_step(name, integer))
+    if isinstance(step, bool) or not isinstance(step, (int, float)) or step <= 0:
+        raise ProfileError(f"{origin}: {name} step 必須是正數")
+    return SamplingField(
+        name=name,
+        default=int(default) if integer and isinstance(default, float) else default,
+        adjustable=bool(raw.get("adjustable", False)),
+        send=send,
+        note=str(raw.get("note") or ""),
+        integer=integer,
+        minimum=minimum,
+        maximum=maximum,
+        step=step,
+    )
+
+
+def _default_sampling_step(name: str, integer: bool) -> int | float:
+    if integer:
+        return 1
+    return {"temperature": 0.1, "top_p": 0.01, "presence_penalty": 0.1, "frequency_penalty": 0.1}.get(name, 0.1)
+
+
+def _optional_number(value: Any, *, origin: str, label: str) -> int | float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ProfileError(f"{origin}: {label} 必須是數字")
+    return value
+
+
 def parse_profile(raw: dict[str, Any], *, origin: str, path: Path | None = None) -> ModelProfile:
     for key in ("id", "family", "known", "match", "params"):
         if key not in raw:
@@ -198,6 +259,14 @@ def parse_profile(raw: dict[str, Any], *, origin: str, path: Path | None = None)
         if not isinstance(item, dict):
             raise ProfileError(f"{origin} official_examples[{i}] 必須是 object")
         examples.append(_parse_official_example(item, origin=f"{origin} official_examples[{i}]"))
+    sampling_raw = raw.get("sampling") or []
+    if not isinstance(sampling_raw, list):
+        raise ProfileError(f"{origin}: sampling 必須是 list")
+    sampling: list[SamplingField] = []
+    for i, item in enumerate(sampling_raw):
+        if not isinstance(item, dict):
+            raise ProfileError(f"{origin} sampling[{i}] 必須是 object")
+        sampling.append(_parse_sampling(item, origin=f"{origin} sampling[{i}]"))
     source = raw.get("source") or []
     if not isinstance(source, list) or not all(isinstance(s, str) for s in source):
         raise ProfileError(f"{origin}: source 必須是字串陣列")
@@ -217,6 +286,7 @@ def parse_profile(raw: dict[str, Any], *, origin: str, path: Path | None = None)
         source=tuple(source),
         params=params,
         official_examples=tuple(examples),
+        sampling=tuple(sampling),
         path=path,
     )
 

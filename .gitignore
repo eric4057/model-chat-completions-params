@@ -9,3 +9,4 @@ RESULTS.md
 results/*
 !results/.gitkeep
 .codegraph/
+.taste-skill/

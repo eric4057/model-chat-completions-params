@@ -13,23 +13,12 @@
 ├── configs/profiles/         full 考卷三句 prompt
 ├── probe/                    match / 出題 / 判定 / 對照表
 ├── scripts/probe_flowchart.py
+├── web/                      本機頁面：自己填金鑰後選模型比對
+├── tests/unit/               不打網路的單元測試
 └── results/                  本機 JSON + .md（不進版控）
 ```
 
-官方契約在 `configs/models/*.json`（引擎只認 `params[].kind`）。有模型商／NIM 文件就以官方為準，連結寫在各檔 `source`。完整 family 清單見 [`configs/models/README.md`](./configs/models/README.md)。
-
-**有官方特殊參數、預設 `official` 會開槍的 8 家**（`MODEL` 用閘道 `GET /models` 的 id）：
-
-| family | 閘道 id 例子 | 測什麼 | 官方文件 |
-|--------|----------------|--------|----------|
-| gemma-4 | `gemma-4-31B-it` | `enable_thinking` 開／關 | [Thinking](https://ai.google.dev/gemma/docs/capabilities/thinking) |
-| kimi-k3 | `Kimi-K3` | `reasoning_effort`；禁 `thinking`；temperature／top_p 不能改 | [Reasoning effort](https://platform.kimi.ai/docs/guide/use-reasoning-effort) |
-| minimax-m3 | `MiniMax-M3` | `thinking.type`、`reasoning_split` | [Chat Completions](https://platform.minimax.io/docs/api-reference/text-chat-openai) |
-| minimax-m2 | `MiniMax-M2.7` | `thinking.type`（官方：關了仍會想） | [Chat Completions](https://platform.minimax.io/docs/api-reference/text-chat-openai) |
-| nemotron-3-ultra | `NVIDIA-Nemotron-3-Ultra-550B-A55B` | `reasoning_effort`、`reasoning_budget` | [NIM Ultra](https://docs.api.nvidia.com/nim/re/reference/nvidia-nemotron-3-ultra-550b-a55b-infer) |
-| nemotron-3-super | `NVIDIA-Nemotron-3-Super-120B-A12B` | 同上（合法檔不同） | [NIM Super](https://docs.api.nvidia.com/nim/re/reference/nvidia-nemotron-3-super-120b-a12b-infer) |
-| gpt-oss-120b | `gpt-oss-120b`、`gpt-oss-20b` | `reasoning_effort` | [Harmony](https://developers.openai.com/cookbook/articles/openai-harmony) |
-| glm-5 | `GLM-5.2` | `thinking.type`、`reasoning_effort` | [Thinking](https://docs.z.ai/guides/capabilities/thinking) |
+官方契約在 `configs/models/*.json`（引擎只認 `params[].kind`）。有模型商／NIM 文件就以官方為準，連結寫在各檔 `source`。有哪些 family、各測什麼，只維護在 [`configs/models/README.md`](./configs/models/README.md)。`MODEL` 用閘道 `GET /models` 的 id。
 
 `.env` 設好 `MODEL` 後直接跑（不要設 `PROBE_SCOPE`，或設成 `official`）：
 
@@ -58,6 +47,13 @@ full 考卷：
 PROBE_SCOPE=full python3 -u scripts/probe_flowchart.py
 ```
 
+本機頁面（金鑰不從 `.env` 帶入，連線時自己填）：
+
+```bash
+python3 web/server.py
+# http://127.0.0.1:8787
+```
+
 已 `export` 的同名變數會蓋過 `.env`：
 
 ```bash
@@ -76,6 +72,8 @@ unset MODEL OPENAI_BASE_URL OPENAI_API_KEY REASONING_EFFORT ENABLE_THINKING STRE
 | `STREAM_STEPS` | — | `true`＝全部串流；`false`＝全關；不設＝僅 D/F 串流。official 契約槍一律非串流 |
 | `PROBE_MODE` | — | `probe`（預設）打閘道；`enforce`＝官方不允許就本機 400 |
 | `ENABLE_THINKING` | — | **已忽略**。Gemma 由 Profile `flag` 產生獨立對照槍 |
+| `VLLM_BASE_URL` | — | 直連 vLLM 根網址。`VLLM_SERVER_DEV_MODE=1` 時讀 `/server_info` 的 parser 旗標，寫進 `meta.vllm`。不存原始 body |
+| `LITELLM_REQUEST_DEBUG` | — | `true`＝每槍加 `litellm_request_debug`。轉發 body 在 LiteLLM 日誌，用回應的 `x-litellm-call-id` 對。不會回到 JSON |
 
 ## 結果
 
@@ -101,10 +99,10 @@ PYTHONPATH=. python3 -m probe.report_table
 | 欄 | 內容 |
 |----|------|
 | **官方輸出** | 這槍應該怎樣：題號、送了哪個參數、文件要求的 HTTP／欄位（content、reasoning 有或沒有） |
-| **endpoint 輸出** | 閘道實際怎樣：HTTP、有無 reasoning、content／reasoning 預覽、實際送出的 extra |
+| **endpoint 輸出** | 閘道實際怎樣：HTTP、reasoning／content 有或沒有、錯誤訊息、這題參數有沒有送出 |
 | **輸出錯誤** | 兩欄對不上才寫；通過是 `—` |
 
-第三欄對應判定：`—`＝OK；`FAIL`＝缺欄、不該出現的欄出現了、該 4xx 卻 200、或 5xx；`NOOP`＝接受但證明不了生效；`SKIP`＝閘道 4xx 不收。
+第三欄對應判定：`—`＝OK；`FAIL`＝缺欄、不該出現的欄出現了、思考寫在 `content`、推理只在 `provider_specific_fields`、該 4xx 卻 200、5xx、401／429，或串流中途 error；`NOOP`＝接受但證明不了生效，或 `finish_reason=length` 看不到思考；`SKIP`＝閘道 4xx 不收該參數。401／403／429 不算參數拒絕。
 
 不比範例作文全文，也不用思考量排名當官方證明。
 
@@ -115,6 +113,7 @@ PYTHONPATH=. python3 -m probe.report_table
 | `meta.base_url` / `model_profile` / `probe_scope` | 閘道、命中的 family、official 或 full |
 | `meta.contract` | 這家契約摘要（`source` 官網連結、長度欄、能否關 thinking） |
 | `meta.steps` | 實際跑了哪些步驟（official＝`A,E`；full＝`A`–`F`） |
+| `meta.flow` | 四段流程與結論：對上模型、vLLM 旗標、探測、歸類。`conclusion` 是這次能指名的部署問題 |
 | `meta.counts` | 可用／不可用／接受但未生效／跳過 |
 | `meta.read` | 與下表相同的欄位說明（讀檔不必再翻文件） |
 | `models.<MODEL>.results[]` | 每一槍一筆 |
@@ -130,6 +129,9 @@ PYTHONPATH=. python3 -m probe.report_table
 | `content_preview` / `reasoning_preview` | 答案／思考**節錄**，不是全文 |
 | `error_preview` | 非 200 時的錯誤訊息 |
 | `notes` | 判定補充（例如「不應出現 reasoning_content」） |
+| `fault` | 錯誤來源：`auth`、`rate_limit`、`gateway_param`、`gateway_bug`、`vllm_engine`、`stream_error`、`malformed_response` |
+| `reasoning_obs.kind` | `field`／`content_leak`／`provider_only`／`truncated`／`absent` |
+| `response_headers` | `x-litellm-call-id` 等診斷 header |
 | `request` | 實際 POST（不含完整 messages）。有 `reasoning_effort` 只證明有送到閘道 |
 | `local_reject` | `true`＝enforce 本機 400，沒打閘道 |
 | `contract` | 用了哪個參數。`in_official=false`＝官方沒有此值。`finding=gateway_wider_than_official`＝閘道比官方寬 |
@@ -171,14 +173,5 @@ PYTHONPATH=. python3 -m probe.report_table
 2. 填 `match`（`id_equals`／`id_prefix`／`id_regex`，不要寬鬆 substring）。
 3. 用 `params[].kind`：`enum`／`flag`／`int_range`／`locked`／`forbidden`／`echo`。沒有特殊參數就留空 `params`，`official` scope 會是空結果。
 4. 不必改探測步驟（STEPS）。用 `MODEL` 對上閘道 id 後跑 `scripts/probe_flowchart.py` 即為實測。
-
-## 判定
-
-| 終端 | 意思 |
-|------|------|
-| OK | 預期成立 |
-| NOOP | 200 但欄位／行為沒對上，或只證明閘道接受 |
-| SKIP | 該參數閘道 **4xx** 不接受 |
-| FAIL | 應成功卻失敗；非法參數 **5xx**；或官方應拒卻 200 |
 
 流程見 [FLOWCHART.md](./FLOWCHART.md)；逐步判定見 [ARCHITECTURE.md](./ARCHITECTURE.md)。腳本測的是 **LiteLLM 閘道整條鏈**，不是單看 vLLM 或廠商雲端 API。

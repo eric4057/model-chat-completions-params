@@ -1,0 +1,72 @@
+{
+  "id": "minimax-m3.1",
+  "family": "MiniMax M3.1 Flash",
+  "known": true,
+  "transport": "openai_chat",
+  "baseline": true,
+  "note": "MiniMax-M3.1-Flash 與 M3 不同。thinking 永遠開，thinking.type 只收 adaptive；disabled 回 400。深度用 reasoning_effort：low／medium／high／xhigh／max，預設 max。reasoning_split 不能設 false。",
+  "source": [
+    "https://platform.minimax.io/docs/api-reference/text-chat-openai"
+  ],
+  "match": {
+    "id_prefix": [
+      "minimax-m3.1"
+    ]
+  },
+  "request_defaults": {
+    "length_param": "max_completion_tokens",
+    "max_output": 1024
+  },
+  "sampling": [
+    {
+      "name": "temperature",
+      "default": 1,
+      "adjustable": false,
+      "note": ""
+    },
+    {
+      "name": "top_p",
+      "default": 0.95,
+      "adjustable": false,
+      "note": ""
+    }
+  ],
+  "params": [
+    {
+      "name": "thinking.type",
+      "kind": "enum",
+      "values": [
+        "adaptive"
+      ],
+      "default": "adaptive",
+      "effect": "has_reasoning",
+      "can_disable": false,
+      "note": "只能 adaptive"
+    },
+    {
+      "name": "reasoning_effort",
+      "kind": "enum",
+      "values": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "default": "max",
+      "effect": "has_reasoning",
+      "can_disable": false,
+      "note": "只此模型可調深度。none 不收。"
+    },
+    {
+      "name": "reasoning_split",
+      "kind": "enum",
+      "values": [
+        true
+      ],
+      "default": true,
+      "effect": "has_reasoning",
+      "note": "只能 true；false 官方不收"
+    }
+  ]
+}

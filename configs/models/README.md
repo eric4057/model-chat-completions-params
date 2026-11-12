@@ -23,9 +23,12 @@ NCHC 自有模型沒有外部官網時，`source` 可空；不要捏造出處。
 | `nemotron-3-ultra` | NVIDIA Nemotron 3 Ultra | `NVIDIA-Nemotron-3-Ultra-550B-A55B` | `reasoning_effort`（none／medium／high）、`reasoning_budget` | [NIM Ultra infer](https://docs.api.nvidia.com/nim/re/reference/nvidia-nemotron-3-ultra-550b-a55b-infer) |
 | `nemotron-3-super` | NVIDIA Nemotron 3 Super | `NVIDIA-Nemotron-3-Super-120B-A12B` | `reasoning_effort`（none／low／high）、`reasoning_budget` | [NIM Super infer](https://docs.api.nvidia.com/nim/re/reference/nvidia-nemotron-3-super-120b-a12b-infer) |
 | `gpt-oss-120b` | OpenAI gpt-oss | `gpt-oss-120b` | `reasoning_effort`（low／medium／high；無 none／max） | [Harmony](https://developers.openai.com/cookbook/articles/openai-harmony)、[GitHub](https://github.com/openai/gpt-oss)、[Model card PDF](https://cdn.openai.com/pdf/419b6906-9da6-406c-a19d-1bb078ac7637/oai_gpt-oss_model_card.pdf) |
-| `glm-5` | Zhipu GLM-5 | `GLM-5.2` | `thinking.type` 開／關、`reasoning_effort`（含 none／minimal） | [Thinking](https://docs.z.ai/guides/capabilities/thinking) |
-| `minimax-m2` | MiniMax M2.x | `MiniMax-M2.7` | `thinking.type`（enabled／adaptive／disabled；官方：關了仍會想） | [Chat Completions](https://platform.minimax.io/docs/api-reference/text-chat-openai) |
-| `minimax-m3` | MiniMax M3 | `MiniMax-M3` | `thinking.type` 開／關、`reasoning_split` | [Chat Completions](https://platform.minimax.io/docs/api-reference/text-chat-openai) |
+| `muse-spark` | Meta Muse Spark Open | `Muse-Spark-Open-816B-A42B` | `reasoning_effort`（low／medium／high／xhigh；預設 xhigh；不能關） | [Model card](https://huggingface.co/meta-models/Muse-Spark-Open-816B-A42B)、[Prompting](https://dev.meta.ai/docs/muse-spark-open/prompting) |
+| `glm-5` | Zhipu GLM-5.2 | `GLM-5.2` | `thinking.type` 開／關、`reasoning_effort`（max／xhigh／high／medium／low／minimal／none） | [Thinking](https://docs.z.ai/guides/capabilities/thinking) |
+| `glm-5.3` | Zhipu GLM-5.3 | `GLM-5.3` | `thinking.type` 只能 enabled；`reasoning_effort` 只收 low／high／max | [GLM-5.3](https://docs.z.ai/guides/llm/glm-5.3)、[Thinking](https://docs.z.ai/guides/capabilities/thinking) |
+| `minimax-m2` | MiniMax M2.x | `MiniMax-M2.7` | `thinking.type` 只有 adaptive／disabled（disabled 仍會想） | [Chat Completions](https://platform.minimax.io/docs/api-reference/text-chat-openai) |
+| `minimax-m3` | MiniMax M3 | `MiniMax-M3` | `thinking.type` adaptive／disabled、`reasoning_split` | [Chat Completions](https://platform.minimax.io/docs/api-reference/text-chat-openai) |
+| `minimax-m3.1` | MiniMax M3.1 Flash | `MiniMax-M3.1-Flash` | `thinking.type` 只能 adaptive；`reasoning_effort` low／medium／high／xhigh／max；`reasoning_split` 只能 true | [Chat Completions](https://platform.minimax.io/docs/api-reference/text-chat-openai) |
 
 連結與各檔 JSON 的 `source` 相同。Gemma 4 × Kimi K3 另有人讀對照：[PARAMS.md](../../PARAMS.md)。
 
