@@ -3,10 +3,10 @@
 預設 `PROBE_SCOPE=official`：測該模型**官方網站列出的特殊參數**是否有效，回覆必須符合**官方文件寫死的那層**（欄位有／無、應 4xx），**不是**範例作文全文，也**不是**思考量排名。
 
 對齊 `scripts/probe_flowchart.py`。流程圖見 [FLOWCHART.md](./FLOWCHART.md)。  
-`PROBE_SCOPE=full` 才跑 baseline `A, B, C, D, E, F` 通用考卷。  
-用系統 `curl` 打 `GET /models` 與 `POST /chat/completions`。題目在 `configs/profiles/generic.json`。  
-官方契約在 `configs/models/`（有模型商／NIM 官方文件就以官方為準；`source` 列出處。加 JSON 即可測新 family）。[PARAMS.md](./PARAMS.md) 是人讀說明。跑完看 `results/flowchart_*.json` 與同名 `.md`；**輸出欄位說明見 [README.md](./README.md)「結果」**。JSON 的 `meta.read` 與文件相同，讀檔不必再翻。  
-vLLM `--reasoning-parser`／`--tool-call-parser`、LiteLLM 是否丟參數：腳本當客戶端看不到，不列入步驟。
+`PROBE_SCOPE=full` 跑 `A, B, C, D, E, F`。A 多 `A.enable` 與 `A.multiturn`；E 在 D 之後、F 之前。  
+用系統 `curl` 打 `{OPENAI_BASE_URL}/models` 與 `{OPENAI_BASE_URL}/chat/completions`。題目在 `configs/profiles/generic.json`。  
+官方契約在 `configs/models/`（有模型商／NIM 官方文件就以官方為準；`source` 列出處。加 JSON 即可測新 family）。[PARAMS.md](./PARAMS.md) 是人讀說明，範圍比探測槍寬。跑完看 `results/flowchart_*.json` 與同名 `.md`；**輸出欄位說明見 [README.md](./README.md)「結果」**。JSON 的 `meta.read` 與文件相同，讀檔不必再翻。  
+vLLM `--reasoning-parser`／`--tool-call-parser`、LiteLLM 是否丟參數，不是 A–F 的一槍。有 `VLLM_BASE_URL` 才在開打前讀 `/server_info`，寫進流程的 vLLM 段。網站 `web/server.py` 只跑使用者勾選的 official 槍，不讀這個網址。
 
 `.env`：`OPENAI_BASE_URL`、`OPENAI_API_KEY`、`MODEL`（必須是閘道 `/models` 上的 id）。
 
@@ -63,7 +63,7 @@ vLLM `--reasoning-parser`／`--tool-call-parser`、LiteLLM 是否丟參數：腳
 
 ## A reasoning（`step_a`，`full` 才有 `A.enable`）
 
-探測閘道有沒有 thinking／`reasoning_effort`。掃哪些值由命中的 `configs/models/*.json` 決定，不是聯集。未知模型不掃 effort。**4xx 記 SKIP；5xx／timeout 記 FAIL。**
+探測閘道有沒有 thinking／`reasoning_effort`。掃哪些值由命中的 `configs/models/*.json` 決定，不是聯集。未知模型不掃 effort。合法值 **4xx 記 SKIP**；401／403／429、5xx、timeout 記 FAIL。非法值的 4xx 是 OK，見下表。`A.enable` 的非 200 一律 FAIL，不是 SKIP。
 
 **Gemma 4** 只打 Google 官方開關 `chat_template_kwargs.enable_thinking`（不汙染 JSON/tools）。不掃 vLLM 的 `reasoning_effort`／`include_reasoning`。Kimi 才用 `reasoning_tokens` 比強度。
 
@@ -73,7 +73,7 @@ vLLM `--reasoning-parser`／`--tool-call-parser`、LiteLLM 是否丟參數：腳
 
 ```mermaid
 flowchart LR
-  enable --> contract --> multiturn --> B
+  enable --> contract --> official_ex[A.official_*] --> multiturn --> B
 ```
 
 | case_id | 請求 | 判定 |
@@ -96,7 +96,7 @@ flowchart LR
 | `B.none` | 不帶 `response_format` | 200 → OK（不一定是 JSON） |
 | `B.json_object` | `{"type":"json_object"}` | 200 且 `content` 可 `json.loads` → OK；200 但不是 JSON → NOOP |
 | `B.json_schema` | 固定 schema（`ok` bool、`n` int、`strict`、不可多欄） | 200 且 content **符合 schema** → OK；200 但只是別的 JSON → NOOP |
-| `B.string_json` | `"response_format":"json"`（非法字串） | **4xx → OK**；200 → NOOP；**5xx → FAIL** |
+| `B.string_json` | `"response_format":"json"`（非法字串） | 其餘 **4xx → OK**；200 → NOOP；401／403／429／5xx → FAIL |
 
 ---
 
@@ -106,9 +106,9 @@ flowchart LR
 
 | case_id | 請求 | 判定 |
 |---------|------|------|
-| `C.auto` | `tool_choice=auto` | 200 → OK；無 `tool_calls` 只記 notes（模型可以選擇不叫） |
-| `C.required` | `required` | 200 且有 `tool_calls` → OK；200 但沒叫 → NOOP |
-| `C.none` | `none` | 200 且沒有 `tool_calls` → OK；仍有 → NOOP |
+| `C.auto` | `tool_choice=auto` | 200 → OK；無 `tool_calls` 只記 notes（模型可以選擇不叫）。工具呼叫寫在 `content` → FAIL |
+| `C.required` | `required` | 200 且有 `tool_calls` → OK；200 但沒叫 → NOOP。寫在 `content` → FAIL |
+| `C.none` | `none` | 200 且沒有 `tool_calls` → OK；仍有 `tool_calls` → NOOP。寫在 `content` → FAIL |
 
 ---
 
@@ -122,17 +122,17 @@ flowchart LR
 | case_id | 來源 | 判定 |
 |---------|------|------|
 | `D.sse` | 第一槍 | 200 且 content 或 reasoning 非空 → OK |
-| `D.reasoning_delta` | 同一份 | 有獨立 reasoning delta → OK，否則 NOOP |
+| `D.reasoning_delta` | 同一份 | 有獨立 reasoning 欄 → OK；寫在 `content` 或只在 `provider_specific_fields` → FAIL；沒有或 `finish_reason=length` → NOOP |
 | `D.done` | 同一份 | 200 且看到 `[DONE]` → OK |
-| `D.tool_delta` | 第二槍 | 200 且有 tool_calls／delta → OK；200 但沒叫 → NOOP |
+| `D.tool_delta` | 第二槍 | 200 且有 tool_calls／delta → OK；200 但沒叫 → NOOP。寫在 `content` → FAIL |
 
 ---
 
 ## E sampling（`step_e`）
 
-Profile 若宣告 `kind=locked`（Kimi 的 `temperature` / `top_p`），走契約 **reject**：4xx → OK；200 → FAIL（閘道比官方寬）；5xx → FAIL。
+Profile 若宣告 `kind=locked`（Kimi 的 `temperature` / `top_p`），走契約 **reject**：其餘 4xx → OK；200 → FAIL（閘道比官方寬）；401／403／429／5xx → FAIL。
 
-未宣告 locked 時仍打一槍 `temperature=0.2`：200 → **NOOP**（只證明閘道接受，不證明 sampling 生效）；4xx → SKIP；5xx → FAIL。
+未宣告 locked 時，**只有 `full`** 打一槍 `temperature=0.2`：200 → **NOOP**（只證明閘道接受，不證明 sampling 生效）；其餘 4xx → SKIP；401／403／429／5xx → FAIL。`official` 沒有 locked 就不打 E。
 
 ---
 
@@ -146,7 +146,7 @@ Profile 若宣告 `kind=locked`（Kimi 的 `temperature` / `top_p`），走契�
 | `F.think_off_stream` / `F.think_off_sync` | 官方「關思考」檔（若有） | 能關：content 非空且**沒有** reasoning；官方關了仍會想（如 MiniMax M2）：仍要有 reasoning |
 | `F.schema_reasoning` | json_schema + `prompt_json` | 200 且 content **符合 schema** `{ok, n}` → OK |
 | `F.stream_reasoning` | stream + `prompt`（不帶思考 extra） | 200 且有 content 或 reasoning → OK |
-| `F.stream_tools` | stream + tools `auto` | 200 → OK；無 tool_calls 只記 notes |
+| `F.stream_tools` | stream + tools `auto` | 200 → OK；無 tool_calls 只記 notes。寫在 `content` → FAIL |
 
 Kimi／gpt-oss 官方不能關思考：只有「開」× 串流兩槍。`reasoning_effort` 只取開／關兩極，不掃 low／medium／high 每一檔。
 

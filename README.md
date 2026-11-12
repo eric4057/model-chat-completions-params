@@ -1,6 +1,6 @@
 # model-chat-completions-params
 
-對 OpenAI-compatible 閘道做**單模型官方參數檢測**：該模型官網列出的特殊參數在 `POST /v1/chat/completions` 是否真能用，回覆是否符合**官方文件寫死的欄位／行為**（不是只回 200，也不是範例作文全文）。
+對 OpenAI-compatible 閘道做**單模型官方參數檢測**：該模型官網列出的特殊參數在 `{OPENAI_BASE_URL}/chat/completions` 是否真能用，回覆是否符合**官方文件寫死的欄位／行為**（不是只回 200，也不是範例作文全文）。`OPENAI_BASE_URL` 已含 `/v1`。
 
 ```text
 .
@@ -28,10 +28,10 @@ python3 -u scripts/probe_flowchart.py
 
 其餘 family 只有 match、沒有特殊參數：`official` 是空結果。人讀出處目前只有 Gemma 4 × Kimi K3，見 [PARAMS.md](./PARAMS.md)。
 
-`PROBE_SCOPE=official`（預設）：只測特殊參數＋文件寫死的回覆欄位。  
-`PROBE_SCOPE=full`：再加 A–F 通用考卷（JSON／tools／stream／思考×串流組合）。
+`PROBE_SCOPE=official`（預設）：A 契約槍與官網範例，然後 E（只有 `kind=locked`）。  
+`PROBE_SCOPE=full`：A（含 `A.enable`、契約槍、官網範例、`A.multiturn`）→ B → C → D → E → F。沒有 locked 時，E 改打 `temperature=0.2`，而且排在 D 之後。
 
-NCHC 閘道 `GET /models` 分類：`configs/models/_nchc_catalog.json`（`_` 開頭，不會當 Profile 載入）。78 個 chat id 對到 29 個 family；27 個 embedding／ASR／TTS／圖像 id 不建 chat 探測檔。
+NCHC 閘道 `GET /models` 分類：`configs/models/_nchc_catalog.json`（`_` 開頭，不會當 Profile 載入）。78 個 chat id 對到 29 個 family；27 個非 chat id（embedding、reranker、ASR、TTS、圖像、影音）不建 chat 探測檔。
 
 ## 跑一次
 
@@ -47,7 +47,7 @@ full 考卷：
 PROBE_SCOPE=full python3 -u scripts/probe_flowchart.py
 ```
 
-本機頁面（金鑰不從 `.env` 帶入，連線時自己填）：
+本機頁面只跑 `official`，由使用者勾選契約槍。金鑰不從 `.env` 帶入，連線時自己填。不跑 B–F，也不讀 `VLLM_BASE_URL`：
 
 ```bash
 python3 web/server.py
@@ -90,7 +90,7 @@ results/flowchart_<閘道MODEL>_<時間>.json
 PYTHONPATH=. python3 -m probe.report_table
 ```
 
-`official` 只有這家特殊參數（A）＋鎖定值（E）；沒有契約就是空表。`full` 再加 B–F（含 `F.think_*` 思考×串流）。
+`official` 是 A 契約槍與官網範例，加上 locked 的 E；沒有契約就是空表。`full` 是 A → B → C → D → E → F（含 `F.think_*`）。
 
 ### `.md` 三欄
 
@@ -102,7 +102,7 @@ PYTHONPATH=. python3 -m probe.report_table
 | **endpoint 輸出** | 閘道實際怎樣：HTTP、reasoning／content 有或沒有、錯誤訊息、這題參數有沒有送出 |
 | **輸出錯誤** | 兩欄對不上才寫；通過是 `—` |
 
-第三欄對應判定：`—`＝OK；`FAIL`＝缺欄、不該出現的欄出現了、思考寫在 `content`、推理只在 `provider_specific_fields`、該 4xx 卻 200、5xx、401／429，或串流中途 error；`NOOP`＝接受但證明不了生效，或 `finish_reason=length` 看不到思考；`SKIP`＝閘道 4xx 不收該參數。401／403／429 不算參數拒絕。
+第三欄對應判定：`—`＝OK；`FAIL`＝缺欄、不該出現的欄出現了、思考寫在 `content`、推理只在 `provider_specific_fields`、工具呼叫寫在 `content`、該 4xx 卻 200、5xx、401／403／429，或串流中途 error；`NOOP`＝接受但證明不了生效，或 `finish_reason=length` 看不到思考；`SKIP`＝閘道 4xx 不收該參數。401／403／429 不算參數拒絕。
 
 不比範例作文全文，也不用思考量排名當官方證明。
 
@@ -129,7 +129,7 @@ PYTHONPATH=. python3 -m probe.report_table
 | `content_preview` / `reasoning_preview` | 答案／思考**節錄**，不是全文 |
 | `error_preview` | 非 200 時的錯誤訊息 |
 | `notes` | 判定補充（例如「不應出現 reasoning_content」） |
-| `fault` | 錯誤來源：`auth`、`rate_limit`、`gateway_param`、`gateway_bug`、`vllm_engine`、`stream_error`、`malformed_response` |
+| `fault` | 錯誤來源：`transport_timeout`、`upstream_closed`、`auth`、`rate_limit`、`gateway_param`、`gateway_bug`、`vllm_engine`、`client_reject`、`server_error`、`stream_error`、`embedded_error`、`malformed_response` |
 | `reasoning_obs.kind` | `field`／`content_leak`／`provider_only`／`truncated`／`absent` |
 | `response_headers` | `x-litellm-call-id` 等診斷 header |
 | `request` | 實際 POST（不含完整 messages）。有 `reasoning_effort` 只證明有送到閘道 |
