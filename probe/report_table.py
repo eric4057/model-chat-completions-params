@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from probe.faults import clip_text
 from probe.flow import render_flow_md
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,13 +28,6 @@ _VERDICT_ZH = {
     "noop": "NOOP",
     "skip": "SKIP",
 }
-
-
-def _clip(text: Any, limit: int = 96) -> str:
-    raw = " ".join(str(text or "").split())
-    if len(raw) <= limit:
-        return raw
-    return raw[: limit - 1] + "…"
 
 
 def _md_cell(text: str) -> str:
@@ -123,7 +117,7 @@ def _observed_fields(row: dict[str, Any]) -> str:
     bits.append("有 content" if (row.get("content_preview") or "").strip() else "content 空")
     err = row.get("error_preview")
     if err:
-        bits.append("error=" + _clip(err, 80))
+        bits.append("error=" + clip_text(err, 80, collapse=True))
     obs = row.get("reasoning_obs") or {}
     kind = obs.get("kind")
     if kind and kind not in {"field", "absent"}:

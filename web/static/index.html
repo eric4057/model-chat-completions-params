@@ -50,10 +50,12 @@
     .gateways { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px; }
     .gateway {
       display: grid;
-      grid-template-columns: minmax(240px, 1.4fr) minmax(180px, 0.8fr) auto;
+      grid-template-columns: 5.5rem minmax(240px, 1.4fr) minmax(180px, 0.8fr) auto;
       gap: 8px;
       align-items: center;
     }
+    .gateway-name { font-weight: 650; }
+    .gateway.active .gateway-name { color: var(--ok); }
     .gateway input { width: 100%; min-width: 0; }
     input:not([type="checkbox"]), select, button { font: inherit; color: var(--ink); height: var(--control); }
     input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
@@ -594,21 +596,31 @@ async function runProbe() {
   el("run").disabled = false;
 }
 
-function renderGateway(item) {
+function renderGateways(items) {
   const box = el("endpoints");
   box.replaceChildren();
-  const form = document.createElement("form");
-  form.className = "gateway";
-  form.dataset.id = item.id;
-  const keyHint = item.configured ? "已設定。留空則沿用現有金鑰。" : "API 金鑰";
-  form.innerHTML = `<input type="url" name="base_url" placeholder="endpoint" value="${esc(item.base_url || "")}" autocomplete="off" spellcheck="false">
-    <input type="password" name="api_key" placeholder="${esc(keyHint)}" autocomplete="off">
-    <button type="submit">連線</button>`;
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    connectGateway(form).catch((error) => { setStatus(error.message, "bad"); });
+  for (const item of items) {
+    const form = document.createElement("form");
+    form.className = "gateway";
+    form.dataset.id = item.id;
+    const keyHint = item.configured ? "已設定。留空則沿用現有金鑰。" : "API 金鑰";
+    form.innerHTML = `<span class="gateway-name">${esc(item.label || item.id)}</span>
+      <input type="url" name="base_url" placeholder="閘道網址，已含 /v1" value="${esc(item.base_url || "")}" autocomplete="off" spellcheck="false">
+      <input type="password" name="api_key" placeholder="${esc(keyHint)}" autocomplete="off">
+      <button type="submit">連線</button>`;
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      connectGateway(form).catch((error) => { setStatus(error.message, "bad"); });
+    });
+    box.appendChild(form);
+  }
+  markActive();
+}
+
+function markActive() {
+  document.querySelectorAll(".gateway").forEach((form) => {
+    form.classList.toggle("active", form.dataset.id === state.endpoint);
   });
-  box.appendChild(form);
 }
 
 async function connectGateway(form) {
@@ -633,17 +645,19 @@ async function connectGateway(form) {
   form.elements.api_key.value = "";
   form.elements.api_key.placeholder = "已設定。留空則沿用現有金鑰。";
   state.endpoint = saved.id;
+  markActive();
   await loadModels();
   setStatus("連線成功", "ok");
 }
 
 async function boot() {
   const body = await api("/api/endpoints");
-  el("note").textContent = "「一致」表示 HTTP 狀態與回應欄位符合官方文件，不比較生成全文。";
+  el("note").textContent = "INNER、PORTAL 的網址可以預設。API 金鑰在這裡填，不從 .env 帶入。「一致」表示 HTTP 狀態與回應欄位符合官方文件，不比較生成全文。";
   el("note").title = body.compare_note || "";
   state.endpoints = body.endpoints;
-  const preferred = body.endpoints.find((item) => item.configured) || body.endpoints[0];
-  renderGateway(preferred || { id: "", base_url: "", configured: false });
+  const preferred = body.endpoints.find((item) => item.configured);
+  if (preferred) state.endpoint = preferred.id;
+  renderGateways(body.endpoints);
   el("filter").addEventListener("input", renderModelOptions);
   el("model").addEventListener("change", () => loadParams().catch((error) => { el("family").textContent = error.message; }));
   el("run").addEventListener("click", () => runProbe());
@@ -653,7 +667,7 @@ async function boot() {
       .then(() => setStatus("連線成功", "ok"))
       .catch((error) => { el("family").textContent = error.message; setStatus(error.message, "bad"); });
   } else {
-    el("family").textContent = "請填寫 endpoint 與 API 金鑰後連線。";
+    el("family").textContent = "請在 INNER 或 PORTAL 填 API 金鑰後連線。";
   }
 }
 

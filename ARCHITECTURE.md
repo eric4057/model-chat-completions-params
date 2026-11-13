@@ -21,18 +21,7 @@ vLLM `--reasoning-parser`／`--tool-call-parser`、LiteLLM 是否丟參數，不
 
 進 A 之後單題失敗**不中止**，記判定後繼續；最後才寫 `results/flowchart_<MODEL>_<時間>.json` 與同名 `.md` 對照表。
 
-每筆 JSON 含：
-- `request`：實際 POST 欄位（不含完整 messages）→ 證明**有沒有送到**
-- official scope 的 effect 槍含 `official`（文件寫死的回覆欄位）
-- `full` 的 effort 槍另含 `compare`（優先 `usage.completion_tokens_details.reasoning_tokens`，沒有才用字數；**不算**官方證明）
-
-| `compare`（僅 `full`） | 值 | 意思 |
-|-----------|----|------|
-| `vs_default` | `like_default` / `not_default` / `unknown` | 像不像不帶參數的那槍 |
-| `vs_max` | `like_max` / `not_like_max` / `null` | 像不像本次的 `max` 槍（沒掃 max 則 null） |
-| `this` / `default` / `max` | 數字 | 本次／預設／max 的思考量 |
-
-`like_default`（或像已確認為預設的 `max`）→ **不是獨立檔**。`not_default` 只證明不是預設，**不能**證明就是官方的 `medium`／`high`。
+結果欄位定義在該 JSON 的 `meta.read`。`like_default`（或像已確認為預設的 `max`）不是獨立檔；`not_default` 只證明不是預設，不能證明就是官方的 `medium`／`high`。
 
 考卷三句（`full` 才用；`official` 的官網範例槍用 Profile 裡的原文 prompt）：
 
@@ -63,25 +52,18 @@ vLLM `--reasoning-parser`／`--tool-call-parser`、LiteLLM 是否丟參數，不
 
 ## A reasoning（`step_a`，`full` 才有 `A.enable`）
 
-探測閘道有沒有 thinking／`reasoning_effort`。掃哪些值由命中的 `configs/models/*.json` 決定，不是聯集。未知模型不掃 effort。合法值 **4xx 記 SKIP**；401／403／429、5xx、timeout 記 FAIL。非法值的 4xx 是 OK，見下表。`A.enable` 的非 200 一律 FAIL，不是 SKIP。
+探測閘道有沒有 thinking／`reasoning_effort`。掃哪些值由命中的 `configs/models/*.json` 決定，不是聯集。未知模型不掃 effort。合法值的 4xx 是 SKIP，非法值的 4xx 是 OK。`A.enable` 的非 200 一律 FAIL，不是 SKIP。401／403／429、5xx、timeout 只寫在「判定」。
 
 **Gemma 4** 只打 Google 官方開關 `chat_template_kwargs.enable_thinking`（不汙染 JSON/tools）。不掃 vLLM 的 `reasoning_effort`／`include_reasoning`。Kimi 才用 `reasoning_tokens` 比強度。
 
-依序（`full`）：`A.enable`（省略 extra）→ Profile 產生的契約槍（flag / enum / int_range / forbidden）→ `A.official_*`（官網範例欄位）→ `A.multiturn` → B。
-
-`A.official_*` 用官網原文 prompt＋request，**強制非串流**。`official.matches_example` 只證明文件寫死的回覆欄位（`content`／`reasoning_content` 非空，或關思考後不該出現 reasoning），**不是**官方全文標準答案。
-
-```mermaid
-flowchart LR
-  enable --> contract --> official_ex[A.official_*] --> multiturn --> B
-```
+`full` 的 A 段順序見 [FLOWCHART.md](./FLOWCHART.md)。`A.official_*` 用官網原文 prompt＋request，強制非串流。`official.matches_example` 只證明文件寫死的回覆欄位，不是官方全文。
 
 | case_id | 請求 | 判定 |
 |---------|------|------|
 | `A.enable` | 不帶 extra | 有 `reasoning`／`reasoning_content` → OK；200 無欄位 → NOOP；非 200 → FAIL |
 | Profile `flag` | 例如 `enable_thinking=true/false` | effect：有／無 reasoning 欄位。獨立一槍，不插入 B–F |
-| Profile `enum` 合法值 | 例如 `reasoning_effort=low` | 4xx → SKIP；5xx → FAIL；Gemma 看有無 reasoning；Kimi 用 token 比是否異於預設 |
-| Profile `enum` 非法值 | 官方 `reject` + `invalid_example` | **4xx → OK**；**200 → FAIL**（閘道比官方寬）；**5xx → FAIL** |
+| Profile `enum` 合法值 | 例如 `reasoning_effort=low` | 4xx → SKIP；Gemma 看有無 reasoning；Kimi 用 token 比是否異於預設 |
+| Profile `enum` 非法值 | 官方 `reject` + `invalid_example` | **4xx → OK**；**200 → FAIL**（閘道比官方寬） |
 | `A.official_*` | 官網原文 prompt＋request | 文件寫死的回覆欄位符合 → OK；缺欄／不該出現卻出現／非 200 → FAIL。**不比全文** |
 | `A.multiturn` | 把 `A.enable` 的 assistant（含 reasoning）塞回再問一次 | 僅 enable 為 200 才打；該槍 200 → OK |
 
@@ -96,7 +78,7 @@ flowchart LR
 | `B.none` | 不帶 `response_format` | 200 → OK（不一定是 JSON） |
 | `B.json_object` | `{"type":"json_object"}` | 200 且 `content` 可 `json.loads` → OK；200 但不是 JSON → NOOP |
 | `B.json_schema` | 固定 schema（`ok` bool、`n` int、`strict`、不可多欄） | 200 且 content **符合 schema** → OK；200 但只是別的 JSON → NOOP |
-| `B.string_json` | `"response_format":"json"`（非法字串） | 其餘 **4xx → OK**；200 → NOOP；401／403／429／5xx → FAIL |
+| `B.string_json` | `"response_format":"json"`（非法字串） | 4xx → OK；200 → NOOP |
 
 ---
 
@@ -130,9 +112,9 @@ flowchart LR
 
 ## E sampling（`step_e`）
 
-Profile 若宣告 `kind=locked`（Kimi 的 `temperature` / `top_p`），走契約 **reject**：其餘 4xx → OK；200 → FAIL（閘道比官方寬）；401／403／429／5xx → FAIL。
+Profile 若宣告 `kind=locked`（Kimi 的 `temperature` / `top_p`），走契約 **reject**：4xx → OK；200 → FAIL（閘道比官方寬）。
 
-未宣告 locked 時，**只有 `full`** 打一槍 `temperature=0.2`：200 → **NOOP**（只證明閘道接受，不證明 sampling 生效）；其餘 4xx → SKIP；401／403／429／5xx → FAIL。`official` 沒有 locked 就不打 E。
+未宣告 locked 時，**只有 `full`** 打一槍 `temperature=0.2`：200 → **NOOP**（只證明閘道接受，不證明 sampling 生效）；4xx → SKIP。`official` 沒有 locked 就不打 E。401／403／429 與 5xx 見「判定」。
 
 ---
 
@@ -159,7 +141,7 @@ Kimi／gpt-oss 官方不能關思考：只有「開」× 串流兩槍。`reasoni
 | OK | `pass` | 這題預期成立 |
 | FAIL | `fail` | 應成功卻失敗；非法參數回 **5xx** |
 | NOOP | `noop` | 2xx 但欄位／行為沒對上，或只證明閘道接受、無法證明生效 |
-| SKIP | `skip` | 該參數 **4xx** 不接受（401／403／429 除外，那些是 FAIL） |
+| SKIP | `skip` | 該參數 **4xx** 不接受（401／403／429 除外，那些是 FAIL）。上面各表的 4xx／5xx 都套這條，不在每一列再寫 |
 
 HTTP 200 仍可能失敗：思考標記寫在 `content`（`content_leak`）、推理只在 `provider_specific_fields.reasoning`（`unmapped_provider_field`）、串流 chunk 帶 `error`、body 沒有 `choices`。`finish_reason=length` 且看不到思考欄 → NOOP，不把截斷當成「參數沒生效」。
 

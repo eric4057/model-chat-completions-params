@@ -45,6 +45,20 @@ _SPECS = (
 )
 
 
+def parse_env_text(text: str) -> dict[str, str]:
+    """讀 .env 文字。空白與引號去掉；# 開頭與沒有等號的行略過。"""
+    out: dict[str, str] = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        key, val = key.strip(), val.strip().strip("'\"")
+        if key:
+            out[key] = val
+    return out
+
+
 def resolve_endpoints(env: dict[str, str]) -> tuple[GatewayEndpoint, ...]:
     """INNER／PORTAL。專用金鑰優先；沒有時，只有網址與 OPENAI_BASE_URL 相同才沿用 OPENAI_API_KEY。"""
     shared_url = env.get("OPENAI_BASE_URL", "").strip().rstrip("/")

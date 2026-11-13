@@ -36,7 +36,8 @@ from probe.cases import (
     official_scope_cases,
 )
 from probe.extra import deep_merge
-from probe.faults import content_has_tool_call, extract_vllm_flags, finalize_verdict
+from probe.gateways import parse_env_text
+from probe.faults import clip_text, content_has_tool_call, extract_vllm_flags, finalize_verdict
 from probe.flow import build_flow, render_flow_md
 from probe.http_parse import parse_curl_stdout
 from probe.profile import ModelProfile, load_profiles, match_profile, unknown_profile
@@ -99,19 +100,6 @@ WEATHER_TOOLS = [
 ]
 
 
-def _parse_env_text(text: str) -> dict[str, str]:
-    out: dict[str, str] = {}
-    for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, val = line.split("=", 1)
-        key, val = key.strip(), val.strip().strip("'\"")
-        if key:
-            out[key] = val
-    return out
-
-
 def load_env_file() -> None:
     for key in PROBE_ENV:
         if os.environ.get(key):
@@ -119,7 +107,7 @@ def load_env_file() -> None:
     path = ROOT / ".env"
     if not path.is_file():
         return
-    for key, val in _parse_env_text(path.read_text(encoding="utf-8")).items():
+    for key, val in parse_env_text(path.read_text(encoding="utf-8")).items():
         if key in os.environ:
             ENV_SOURCES.setdefault(key, "shell")
             continue
@@ -192,14 +180,6 @@ def use_stream(default: bool) -> bool:
     if STREAM_STEPS is None:
         return default
     return STREAM_STEPS
-
-
-def _preview(text: Any, n: int = 160) -> str:
-    if text is None:
-        return ""
-    s = text if isinstance(text, str) else json.dumps(text, ensure_ascii=False)
-    s = s.replace("\n", "\\n")
-    return s if len(s) <= n else s[: n - 1] + "…"
 
 
 def _loads_json_content(content: str | None) -> Any | None:
@@ -345,7 +325,7 @@ def _curl(
     if status is None:
         err = stderr or f"curl exit {proc.returncode}"
     elif status >= 400:
-        err = _preview(raw, 400)
+        err = clip_text(raw, 400)
     return {
         "http_status": status,
         "elapsed_ms": elapsed_ms,
@@ -395,7 +375,7 @@ def request_sent(body: dict[str, Any]) -> dict[str, Any]:
     msgs = body.get("messages") or []
     snap["message_count"] = len(msgs)
     if msgs and isinstance(msgs[0], dict):
-        snap["first_user"] = _preview(msgs[0].get("content"), 80)
+        snap["first_user"] = clip_text(msgs[0].get("content"), 80)
     return snap
 
 
@@ -464,10 +444,8 @@ def row(
         else None,
         "usage": r.get("usage") if result else None,
         "finish_reason": r.get("finish_reason"),
-        "content_preview": _preview(r.get("content")),
-        "reasoning_preview": _preview(
-            r.get("reasoning") or r.get("reasoning_content")
-        ),
+        "content_preview": clip_text(r.get("content"), 160),
+        "reasoning_preview": clip_text(r.get("reasoning") or r.get("reasoning_content"), 160),
         "error_preview": r.get("error"),
         "notes": notes,
         "request": r.get("request") if result else None,

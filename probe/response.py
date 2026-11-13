@@ -7,6 +7,7 @@ from typing import Any
 
 from probe.faults import (
     build_fault,
+    clip_text,
     fault_from_body,
     malformed_fault,
     observe_reasoning,
@@ -28,16 +29,6 @@ EMPTY_FIELDS = {
     "saw_usage": False,
     "saw_tool_delta": False,
 }
-
-
-def _preview(text: Any, limit: int = 400) -> str:
-    if text is None:
-        return ""
-    raw = text if isinstance(text, str) else json.dumps(text, ensure_ascii=False)
-    raw = raw.replace("\n", "\\n")
-    if len(raw) <= limit:
-        return raw
-    return raw[: limit - 1] + "…"
 
 
 def _provider_reasoning(msg: dict[str, Any]) -> str | None:
@@ -155,7 +146,7 @@ def _interpret_stream(
             return _failure(
                 status=status,
                 elapsed_ms=elapsed_ms,
-                error=_preview(raw),
+                error=clip_text(raw, 400),
                 stream=True,
                 sent=sent,
                 headers=headers,
@@ -241,7 +232,7 @@ def _interpret_stream(
             error_param=stream_error.get("param"),
             from_stream=True,
         )
-        error = _preview(stream_error.get("message") or stream_error)
+        error = clip_text(stream_error.get("message") or stream_error, 400)
     return _base(
         status=status,
         elapsed_ms=elapsed_ms,
@@ -297,7 +288,7 @@ def _interpret_json(
         return _failure(
             status=status,
             elapsed_ms=elapsed_ms,
-            error=_preview(raw),
+            error=clip_text(raw, 400),
             stream=False,
             sent=sent,
             headers=headers,
@@ -368,7 +359,7 @@ def interpret_chat_response(
             transport_error=error,
             curl_exit=curl_exit,
         )
-        shown = error if status is None else (error or _preview(raw))
+        shown = error if status is None else (error or clip_text(raw, 400))
         return _failure(
             status=status,
             elapsed_ms=elapsed_ms,

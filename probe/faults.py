@@ -202,17 +202,24 @@ def classify_failure(
     return kind
 
 
-def _clip(text: str, limit: int = 180) -> str:
-    flat = " ".join(text.split())
-    if len(flat) <= limit:
-        return flat
-    return flat[: limit - 1] + "…"
+def clip_text(value: Any, limit: int = 180, *, collapse: bool = False) -> str:
+    """截斷顯示用文字。collapse 把空白收成一列；否則保留 \\n。"""
+    if value is None:
+        return ""
+    if collapse:
+        raw = " ".join(str(value).split())
+    else:
+        raw = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+        raw = raw.replace("\n", "\\n")
+    if len(raw) <= limit:
+        return raw
+    return raw[: limit - 1] + "…"
 
 
 def fault_detail(kind: str, message: str, param: Any = None) -> str:
     label = CLASS_ZH.get(kind, kind)
     param_bit = f"（param={param}）" if param else ""
-    clipped = _clip(message)
+    clipped = clip_text(message, collapse=True)
     if clipped:
         return f"{label}{param_bit}：{clipped}"
     return f"{label}{param_bit}"
@@ -241,7 +248,7 @@ def build_fault(
     return {
         "class": kind,
         "detail": fault_detail(kind, message, error_param),
-        "message": _clip(message),
+        "message": clip_text(message, collapse=True),
         "type": error_type,
         "code": error_code,
         "param": error_param,

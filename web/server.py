@@ -29,8 +29,9 @@ from probe.choices import (
     parameter_choices,
     select_cases,
 )
+from probe.faults import clip_text
 from probe.flow import build_flow
-from probe.gateways import GatewayEndpoint, overlay_endpoint, present_endpoints
+from probe.gateways import GatewayEndpoint, overlay_endpoint, parse_env_text, present_endpoints
 from probe.profile import load_profiles, match_profile
 from probe.report_table import endpoint_output, official_output, output_error
 
@@ -46,19 +47,10 @@ _PROBE = None
 
 
 def _read_env_file() -> dict[str, str]:
-    out: dict[str, str] = {}
     path = ROOT / ".env"
     if not path.is_file():
-        return out
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, val = line.split("=", 1)
-        key = key.strip()
-        if key:
-            out[key] = val.strip().strip("'\"")
-    return out
+        return {}
+    return parse_env_text(path.read_text(encoding="utf-8"))
 
 
 def runtime_env() -> dict[str, str]:
@@ -140,13 +132,6 @@ def describe_model(endpoint: GatewayEndpoint, model_id: str) -> dict[str, Any]:
     return body
 
 
-def _preview(value: Any, limit: int = 180) -> str:
-    text = " ".join(str(value or "").split())
-    if len(text) <= limit:
-        return text
-    return text[: limit - 1] + "…"
-
-
 def run_probe(
     endpoint: GatewayEndpoint,
     model_id: str,
@@ -216,9 +201,9 @@ def run_probe(
                 "docs_quote": official.get("docs_quote") or "",
                 "notes": str(row.get("notes") or "").strip(),
                 "has_reasoning": bool(row.get("has_reasoning")),
-                "content_preview": _preview(row.get("content_preview")),
-                "reasoning_preview": _preview(row.get("reasoning_preview")),
-                "error_preview": _preview(row.get("error_preview")),
+                "content_preview": clip_text(row.get("content_preview"), 180, collapse=True),
+                "reasoning_preview": clip_text(row.get("reasoning_preview"), 180, collapse=True),
+                "error_preview": clip_text(row.get("error_preview"), 180, collapse=True),
                 "response_json": row.get("response_json") or "",
                 "request_code": format_chat_call(
                     row.get("request_body") or {},

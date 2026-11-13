@@ -28,8 +28,7 @@ python3 -u scripts/probe_flowchart.py
 
 其餘 family 只有 match、沒有特殊參數：`official` 是空結果。人讀出處目前只有 Gemma 4 × Kimi K3，見 [PARAMS.md](./PARAMS.md)。
 
-`PROBE_SCOPE=official`（預設）：A 契約槍與官網範例，然後 E（只有 `kind=locked`）。  
-`PROBE_SCOPE=full`：A（含 `A.enable`、契約槍、官網範例、`A.multiturn`）→ B → C → D → E → F。沒有 locked 時，E 改打 `temperature=0.2`，而且排在 D 之後。
+步驟順序只寫在 [FLOWCHART.md](./FLOWCHART.md)。`PROBE_SCOPE` 預設 `official`。
 
 NCHC 閘道 `GET /models` 分類：`configs/models/_nchc_catalog.json`（`_` 開頭，不會當 Profile 載入）。78 個 chat id 對到 29 個 family；27 個非 chat id（embedding、reranker、ASR、TTS、圖像、影音）不建 chat 探測檔。
 
@@ -54,26 +53,40 @@ python3 web/server.py
 # http://127.0.0.1:8787
 ```
 
-已 `export` 的同名變數會蓋過 `.env`：
+命令列若已 `export` 同名變數，會蓋過 `.env`。要改回檔案裡的值：
 
 ```bash
-unset MODEL OPENAI_BASE_URL OPENAI_API_KEY REASONING_EFFORT ENABLE_THINKING STREAM_STEPS PROBE_MODE PROBE_SCOPE
+unset MODEL OPENAI_BASE_URL OPENAI_API_KEY REASONING_EFFORT STREAM_STEPS PROBE_MODE PROBE_SCOPE
 ```
 
 ## 環境變數
 
-| 變數 | 必填 | 說明 |
-|------|------|------|
-| `OPENAI_BASE_URL` | ✅ | 閘道 `/v1` 根網址 |
-| `OPENAI_API_KEY` | ✅ | API 金鑰 |
-| `MODEL` | ✅ | `GET /models` 上的 id |
-| `PROBE_SCOPE` | — | `official`（預設）或 `full` |
-| `REASONING_EFFORT` | — | 逗號分隔；空白＝該 Profile 官方枚舉 |
-| `STREAM_STEPS` | — | `true`＝全部串流；`false`＝全關；不設＝僅 D/F 串流。official 契約槍一律非串流 |
-| `PROBE_MODE` | — | `probe`（預設）打閘道；`enforce`＝官方不允許就本機 400 |
-| `ENABLE_THINKING` | — | **已忽略**。Gemma 由 Profile `flag` 產生獨立對照槍 |
-| `VLLM_BASE_URL` | — | 直連 vLLM 根網址。`VLLM_SERVER_DEV_MODE=1` 時讀 `/server_info` 的 parser 旗標，寫進 `meta.vllm`。不存原始 body |
-| `LITELLM_REQUEST_DEBUG` | — | `true`＝每槍加 `litellm_request_debug`。轉發 body 在 LiteLLM 日誌，用回應的 `x-litellm-call-id` 對。不會回到 JSON |
+兩種用法，不要混在一張表裡看。
+
+**命令列** `python3 -u scripts/probe_flowchart.py` 讀 `.env` 的這三個必填，加上面的選填。
+
+| 變數 | 命令列 | 說明 |
+|------|--------|------|
+| `OPENAI_BASE_URL` | 必填 | 閘道網址，已含 `/v1` |
+| `OPENAI_API_KEY` | 必填 | 這次命令用的金鑰 |
+| `MODEL` | 必填 | 閘道 `GET /models` 上的 id |
+| `PROBE_SCOPE` | 選填 | `official`（預設）或 `full` |
+| `REASONING_EFFORT` | 選填 | 逗號分隔；空白＝該模型契約裡的官方枚舉 |
+| `STREAM_STEPS` | 選填 | `true`＝全部串流；`false`＝全關；不設＝只有 D、F 串流。official 契約槍一律非串流 |
+| `PROBE_MODE` | 選填 | `probe`（預設）打閘道；`enforce`＝官方不允許就在本機回 400，不送出 |
+| `VLLM_BASE_URL` | 選填 | 直連 vLLM 的網址，不是閘道 `/v1`。對方開了 `VLLM_SERVER_DEV_MODE=1` 才讀得到 parser 旗標 |
+| `LITELLM_REQUEST_DEBUG` | 選填 | `true`＝每槍多送這個欄位。轉發內容在 LiteLLM 日誌，用回應的 `x-litellm-call-id` 對。不會寫進結果檔 |
+
+`ENABLE_THINKING` 是舊變數，命令列看到會略過。Gemma 的開關來自契約，不是這個變數。
+
+**網頁**不讀上表的金鑰，也不讀 `MODEL`。畫面上是兩列，名稱與下面的網址變數相同：
+
+| 畫面上的名稱 | 網址 | 金鑰 |
+|--------------|------|------|
+| INNER | `INNER_BASE_URL`；沒寫就用內建的 inner 網址 | 只在頁面填 |
+| PORTAL | `PORTAL_BASE_URL`；沒寫就用內建的 portal 網址 | 只在頁面填 |
+
+頁面只跑勾選的 official 槍。`PROBE_SCOPE`、`REASONING_EFFORT`、`STREAM_STEPS`、`VLLM_BASE_URL`、`LITELLM_REQUEST_DEBUG` 對頁面沒有作用。
 
 ## 結果
 
@@ -90,7 +103,7 @@ results/flowchart_<閘道MODEL>_<時間>.json
 PYTHONPATH=. python3 -m probe.report_table
 ```
 
-`official` 是 A 契約槍與官網範例，加上 locked 的 E；沒有契約就是空表。`full` 是 A → B → C → D → E → F（含 `F.think_*`）。
+沒有契約時 `official` 是空表。跑哪些步驟見 [FLOWCHART.md](./FLOWCHART.md)。
 
 ### `.md` 三欄
 
@@ -102,9 +115,7 @@ PYTHONPATH=. python3 -m probe.report_table
 | **endpoint 輸出** | 閘道實際怎樣：HTTP、reasoning／content 有或沒有、錯誤訊息、這題參數有沒有送出 |
 | **輸出錯誤** | 兩欄對不上才寫；通過是 `—` |
 
-第三欄對應判定：`—`＝OK；`FAIL`＝缺欄、不該出現的欄出現了、思考寫在 `content`、推理只在 `provider_specific_fields`、工具呼叫寫在 `content`、該 4xx 卻 200、5xx、401／403／429，或串流中途 error；`NOOP`＝接受但證明不了生效，或 `finish_reason=length` 看不到思考；`SKIP`＝閘道 4xx 不收該參數。401／403／429 不算參數拒絕。
-
-不比範例作文全文，也不用思考量排名當官方證明。
+第三欄的 OK／FAIL／NOOP／SKIP 只寫在 [ARCHITECTURE.md](./ARCHITECTURE.md)「判定」。不比範例作文全文，也不用思考量排名當官方證明。
 
 ### `.json` 結構
 
@@ -112,53 +123,11 @@ PYTHONPATH=. python3 -m probe.report_table
 |------|------|
 | `meta.base_url` / `model_profile` / `probe_scope` | 閘道、命中的 family、official 或 full |
 | `meta.contract` | 這家契約摘要（`source` 官網連結、長度欄、能否關 thinking） |
-| `meta.steps` | 實際跑了哪些步驟（official＝`A,E`；full＝`A`–`F`） |
+| `meta.steps` | 實際跑了哪些步驟。順序見 [FLOWCHART.md](./FLOWCHART.md) |
 | `meta.flow` | 四段流程與結論：對上模型、vLLM 旗標、探測、歸類。`conclusion` 是這次能指名的部署問題 |
 | `meta.counts` | 可用／不可用／接受但未生效／跳過 |
-| `meta.read` | 與下表相同的欄位說明（讀檔不必再翻文件） |
+| `meta.read` | 每一槍欄位、`official`、`compare`、`fault` 的定義。讀檔不必再翻文件 |
 | `models.<MODEL>.results[]` | 每一槍一筆 |
-
-### 每一槍（`results[]`）
-
-| 欄位 | 內容 |
-|------|------|
-| `step` / `case_id` / `desc` | 步驟、題號、說明（例如 `A.type_disabled`） |
-| `verdict` | `pass`／`fail`／`noop`／`skip`（表上對應 OK／FAIL／NOOP／SKIP） |
-| `http_status` / `elapsed_ms` | HTTP 與耗時 |
-| `has_reasoning` / `has_tool_calls` / `json_ok` | 有沒有思考欄、工具呼叫、content 能否當 JSON |
-| `content_preview` / `reasoning_preview` | 答案／思考**節錄**，不是全文 |
-| `error_preview` | 非 200 時的錯誤訊息 |
-| `notes` | 判定補充（例如「不應出現 reasoning_content」） |
-| `fault` | 錯誤來源：`transport_timeout`、`upstream_closed`、`auth`、`rate_limit`、`gateway_param`、`gateway_bug`、`vllm_engine`、`client_reject`、`server_error`、`stream_error`、`embedded_error`、`malformed_response` |
-| `reasoning_obs.kind` | `field`／`content_leak`／`provider_only`／`truncated`／`absent` |
-| `response_headers` | `x-litellm-call-id` 等診斷 header |
-| `request` | 實際 POST（不含完整 messages）。有 `reasoning_effort` 只證明有送到閘道 |
-| `local_reject` | `true`＝enforce 本機 400，沒打閘道 |
-| `contract` | 用了哪個參數。`in_official=false`＝官方沒有此值。`finding=gateway_wider_than_official`＝閘道比官方寬 |
-| `official` | 文件寫死的回覆欄位（見下） |
-| `compare` | 僅 `full` 的 `A.effort_*` 強度槍；**不是**官方格式證明 |
-| `usage` / `finish_reason` | token 用量、結束原因 |
-
-### `official`（文件寫死的那層）
-
-出現在 official 的 effect 槍、`A.official_*`、以及 `F.think_*`。
-
-| 欄位 | 內容 |
-|------|------|
-| `source` / `docs_quote` | 官網 URL、文件一句話 |
-| `request_extra` | 這槍送的特殊參數 |
-| `shape` | 各欄 `expected`（非空／不該出現）與 `ok`；閘道若回 `reasoning` 可當 `reasoning_content` 別名 |
-| `matches_example` | `true`＝欄位有／無符合文件（不是全文標準答案） |
-| `proof` | `response_shape`＝只證明欄位；`unexpected_field`＝不該出現卻出現；`http_mismatch`／`shape_mismatch` |
-| `not_proven` | 模型輸出全文；也不是 `reasoning_tokens` 檔位排名 |
-
-### `compare`（思考量，僅 full）
-
-| 欄位 | 內容 |
-|------|------|
-| `metric` | 優先 `usage.completion_tokens_details.reasoning_tokens`，沒有才用字數 |
-| `vs_default` | `like_default`＝像不帶參數；`not_default`＝不是預設（不能證明就是官方獨立檔）；`unknown`＝無法比 |
-| `vs_max` | 像不像本次 `max` 槍；沒掃 max 則為空 |
 
 ### 不會出現在結果裡
 

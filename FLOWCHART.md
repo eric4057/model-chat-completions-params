@@ -32,11 +32,11 @@ flowchart TD
   Z -->|失敗| Stop2[停]
   Z -->|ok| Match{"MODEL 在閘道清單上？"}
   Match -->|否| Stop3[停]
-  Match -->|是，大小寫可對上| Gen["對到官方契約<br/>依契約列出要測的欄位"]
+  Match -->|對到一筆| Gen["對到官方契約<br/>依契約列出要測的欄位"]
   Gen --> Extra{"PROBE_SCOPE"}
   Extra -->|official 預設| Ao["A 官網特殊參數 + 官網範例"]
   Ao --> Eo["E 官網寫死不能改的值<br/>沒有 locked 就不打"]
-  Eo --> Class["歸類：漏欄／未映射／<br/>閘道丟參數／vLLM 引擎"]
+  Eo --> Class["歸類成 meta.flow.conclusion"]
   Extra -->|full| Af["A.enable → 契約槍 → 官網範例 → A.multiturn"]
   Af --> B["B 指定輸出 JSON"]
   B --> C["C 會不會呼叫工具"]
@@ -51,20 +51,13 @@ flowchart TD
 
 寫檔前固定走四段：對上模型 →（有 `VLLM_BASE_URL` 才讀旗標）→ 探測 → 把同一類問題收成 `meta.flow.conclusion`。旗標在開打前讀；歸類在全部槍打完後做。單題失敗仍不中止。
 
-`A.enable` 與 `A.multiturn` 在 `step_a` 裡面，只在 `full` 出現，而且在 B 之前。未鎖定的 `temperature=0.2` 是 `step_e`，`full` 排在 D 之後、F 之前，不是 B 之前。
-
-| 範圍 | 順序 | 不跑什麼 |
-|------|------|----------|
-| `official`（預設） | A 契約槍與官網範例，然後 E（只有 locked） | `A.enable`、`A.multiturn`、B–D、F、未鎖定的 temperature |
-| `full` | A（含 enable、契約槍、官網範例、multiturn）→ B → C → D → E → F | — |
-
-不要把兩段合成「每次都打 A–F」：官方契約與通用考卷證明的不是同一件事；預設打完全部會又慢又把 JSON／工具失敗當成「官方參數不合格」。對不上任何一家契約時，`official` 的 A、E 都沒有槍（空結果）；`full` 仍打 `A.enable`、`A.multiturn`（enable 為 200 才打）、B–D、`E.temperature`、F。
+沒有官方特殊參數、也沒有官網範例時，`official` 的 A、E 都沒有槍（空結果）。`full` 仍打 `A.enable`、`A.multiturn`（enable 為 200 才打）、B–D、`E.temperature`、F。
 
 ---
 
 ## official 每一槍
 
-契約槍**每槍獨立 nonce**（避免閘道依 messages 快取而忽略 extra）。官網範例槍**不加 nonce**，prompt 必須是文件原文。official 一律非串流。
+nonce、非串流與欄位規則見 [ARCHITECTURE.md](./ARCHITECTURE.md)「official scope」。
 
 ```mermaid
 flowchart LR
@@ -72,8 +65,8 @@ flowchart LR
   Local -->|是| L400[本機 400 未送閘道]
   Local -->|否| Post["POST /chat/completions<br/>非串流"]
   Post --> Exp{expect}
-  Exp -->|reject| Rej["其餘 4xx → pass<br/>200、401、403、429、5xx → fail"]
-  Exp -->|effect| Fields["文件寫死的欄位<br/>有／無 reasoning、content"]
+  Exp -->|reject| Rej["應拒"]
+  Exp -->|effect| Fields["文件寫死的欄位"]
   Exp -->|accept| Http["只看 HTTP 200"]
   L400 --> Next[記 verdict 下一槍]
   Rej --> Next
@@ -81,35 +74,6 @@ flowchart LR
   Http --> Next
 ```
 
-每一槍怎麼判見 [ARCHITECTURE.md](./ARCHITECTURE.md)「official scope」。`reasoning_tokens` 檔位排名**不是**這層的證明。
+狀態碼見 [ARCHITECTURE.md](./ARCHITECTURE.md)「判定」。`reasoning_tokens` 檔位排名不是這層的證明。契約槍種類見同一份的 A–F。
 
----
-
-## A 契約槍
-
-`full` 才有 `A.enable` → 契約槍 → `A.official_*` → `A.multiturn`。`official` 只跑契約槍與官網範例。
-
-下面這張是 `full`。`official` 沒有 enable、multiturn，A 之後進 E，不進 B。
-
-```mermaid
-flowchart LR
-  enable --> contract --> official_ex[A.official_*] --> multiturn --> B
-```
-
-契約槍產生順序是 flag → enum → int_range → forbidden → 官網範例。`A.multiturn` 不在這串裡面，而是 `A.enable` 為 200 之後另打。
-
-| kind | 例子 | 判定重點 |
-|------|------|----------|
-| `flag` | Gemma `chat_template_kwargs.enable_thinking` true/false | official：true 要 content 與 reasoning 都非空；false 要 content 非空且沒有 reasoning。full 的 true 只看有沒有獨立 reasoning 欄 |
-| `enum` 合法 | Kimi `reasoning_effort=low\|high\|max` | official：200 且 content、reasoning 欄都在，不排名。full 且 effect 是 `reasoning_tokens_rank`：4xx → SKIP；200 後用思考量比是否異於預設 |
-| `enum` 非法 | `not-a-level`；Kimi `none`／`medium` | **4xx → OK**；**200 → FAIL**；401／403／429／5xx → FAIL |
-| `int_range` | Nemotron `reasoning_budget` | 範圍內走 effect（這家是有 reasoning）；超出應 4xx。5xx 與 401／429 仍是 FAIL |
-| `forbidden` | Kimi 不該送的 `thinking` | 送了應 4xx；200 → FAIL |
-| `official_examples` | 官網原文 prompt + request | 欄位形狀；不加 nonce；強制非串流 |
-| `locked`（E） | Kimi `temperature`／`top_p` | 改了應 4xx；200 → FAIL。有 locked 就不再打 `E.temperature` |
-
-`ENABLE_THINKING` env **已忽略**：Gemma 的開關由 Profile `flag` 產生獨立對照槍，不插入 B–F。
-
----
-
-怎麼跑、**結果檔欄位**見 [README.md](./README.md)。family 清單見 [configs/models/README.md](./configs/models/README.md)。判定表只維護在 [ARCHITECTURE.md](./ARCHITECTURE.md)「判定」。
+怎麼跑見 [README.md](./README.md)。family 清單見 [configs/models/README.md](./configs/models/README.md)。
